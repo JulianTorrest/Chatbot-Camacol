@@ -142,6 +142,3 @@ Este proyecto fue desarrollado específicamente para CAMACOL. Para sugerencias o
 Este proyecto es propiedad de CAMACOL - Cámara Colombiana de la Construcción.
 
 ---
-
-Desarrollado con ❤️ para CAMACOL
-
