@@ -3,6 +3,7 @@
 *.pdf filter=lfs diff=lfs merge=lfs -text
 *.pptx filter=lfs diff=lfs merge=lfs -text
 *.ppt filter=lfs diff=lfs merge=lfs -text
+*.csv filter=lfs diff=lfs merge=lfs -text
 RAG/2025/Coordenada[[:space:]]Urbana/LIVO_total_oct25_.xlsx filter=lfs diff=lfs merge=lfs -text
 RAG/2025/DANE/Censo[[:space:]]de[[:space:]]Edificaciones[[:space:]]-[[:space:]]CEED[[:space:]]-[[:space:]]2007[[:space:]]-[[:space:]]2025[[:space:]]-[[:space:]]II[[:space:]]Trimestre/DATO_ANONIM_114_04072025.csv filter=lfs diff=lfs merge=lfs -text
 RAG/2025/DANE/Censo[[:space:]]de[[:space:]]Edificaciones[[:space:]]-[[:space:]]CEED[[:space:]]-[[:space:]]2007[[:space:]]-[[:space:]]2025[[:space:]]-[[:space:]]II[[:space:]]Trimestre/DATO_ANONIM_115_09092025.csv filter=lfs diff=lfs merge=lfs -text
