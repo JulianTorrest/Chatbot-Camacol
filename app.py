@@ -683,6 +683,6 @@ st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
     <p>Chatbot desarrollado para CAMACOL - Cámara Colombiana de la Construcción</p>
-    <p>Powered by Google AI (Gemini 2.0 Flash) & Streamlit</p>
+    <p>Powered by la Jefatura de Estudios Economicos e Información Estrategica de Camacol Presidencia</p>
 </div>
 """, unsafe_allow_html=True)
