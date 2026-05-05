@@ -597,7 +597,7 @@ st.markdown("---")
 # Información del chatbot
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.info("💡 Este chatbot utiliza Google AI (Gemini) para proporcionar información sobre CAMACOL y el sector constructor en Colombia.")
+    st.info("Este chatbot utiliza Google AI (Gemini), Open AI y DEEP SEEK para proporcionar información sobre CAMACOL y el sector constructor en Colombia.")
 
 # Preguntas sugeridas
 st.markdown("### Preguntas sugeridas")
