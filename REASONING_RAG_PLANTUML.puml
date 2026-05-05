@@ -1,0 +1,80 @@
+@startuml
+' Diagrama PlantUML: ReasoningSystem vs “reentrenamiento” (RAG)
+
+skinparam componentStyle rectangle
+skinparam wrapWidth 240
+skinparam maxMessageSize 220
+
+title ReasoningSystem vs RAG (re-index) - relación e insumo/salida
+
+actor Usuario as U
+
+package "Flujo principal (runtime)" {
+  [Streamlit\n(app.py)] as APP
+  [Telegram\n(bot_telegram.py)] as TG
+}
+
+package "Razonamiento (reglas)" {
+  [ReasoningSystem\n(reasoning_system.py)] as RS
+  [User Profile\n(user_profile_manager.py)] as UPM
+}
+
+package "Motores de respuesta" {
+  [LIVO SQL\n(livo_sql.py)] as LIVO
+  [RAG Runtime\n(rag_system.py\n.buscar / buscar_con_analisis)] as RAGRUN
+  [LLM Router\n(llm_providers.py)] as LLM
+}
+
+package "Re-index / 'Reentrenar' (offline o admin)" {
+  [Inicializar RAG\n(inicializar_rag.py)] as RAGINIT
+  [RAG Index Builder\n(rag_system.py\n.inicializar)] as RAGBUILD
+  database "RAG Documents\n(RAG/...)" as RAGDOCS
+  database "RAG Cache\n(rag_cache/vectorstore.pkl\n+ manifests)" as RAGCACHE
+}
+
+' --- Runtime flows ---
+U --> APP : Pregunta
+U --> TG : Pregunta
+
+APP --> RS : analyze_and_respond(question, user_id, history)
+TG --> RS : analyze_and_respond(question, user_id, history)
+
+RS --> UPM : get/update profile (opcional)
+
+RS --> APP : needs_clarification?\n+ clarification_response
+RS --> TG : needs_clarification?\n+ clarification_response
+
+APP --> LIVO : consultar(prompt)\n(si es datos)
+APP --> RAGRUN : procesar_consulta_rag(prompt)\n(fallback o no-datos)
+TG --> LIVO : consultar(prompt)
+TG --> RAGRUN : buscar(prompt)
+
+RAGRUN --> RAGCACHE : cargar índice/metadata
+
+LIVO --> LLM : (cuando requiere generación/redacción)
+RAGRUN --> LLM : (cuando requiere síntesis/respuesta)
+
+APP --> U : Respuesta
+TG --> U : Respuesta
+
+note right of RS
+ReasoningSystem:
+- no entrena modelos
+- gatekeeper: detecta faltantes
+- produce contrapreguntas
+end note
+
+note right of RAGBUILD
+"Reentrenar" aquí =
+re-indexar documentos (FAISS)
+no fine-tuning de LLM.
+end note
+
+' --- Re-index flows ---
+RAGINIT --> RAGBUILD : inicializar(force_reload?)
+RAGBUILD --> RAGDOCS : leer PDFs/DOCX/XLSX/CSV/PPTX
+RAGBUILD --> RAGCACHE : guardar vectorstore.pkl\n+ manifest
+
+APP ..> RAGBUILD : Botón "Recargar RAG"\n(inicializar(force_reload=True))
+
+@enduml
