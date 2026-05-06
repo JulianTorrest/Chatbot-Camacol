@@ -374,20 +374,37 @@ def llamar_api_ia(prompt, provider_config):
     except Exception as e:
         return None, f"Error con {provider_config['name']}: {str(e)}"
 
+def obtener_modelos_gemini_disponibles(api_key, config):
+    """Obtiene modelos Gemini disponibles para la API key actual"""
+    modelos_configurados = [
+        st.secrets.get("GEMINI_MODEL"),
+        config["model"],
+    ]
+    modelos_configurados = list(dict.fromkeys([modelo for modelo in modelos_configurados if modelo]))
+    
+    try:
+        url = f"{config['base_url']}?key={api_key}"
+        response = requests.get(url, timeout=30)
+        if response.status_code != 200:
+            return modelos_configurados
+        
+        data = response.json()
+        modelos_api = []
+        for modelo in data.get("models", []):
+            metodos = modelo.get("supportedGenerationMethods", [])
+            nombre = modelo.get("name", "")
+            if "generateContent" in metodos and nombre:
+                modelos_api.append(nombre.replace("models/", ""))
+        
+        return list(dict.fromkeys(modelos_configurados + modelos_api))
+    except Exception:
+        return modelos_configurados
+
 def llamar_gemini(prompt, api_key, config):
     """Implementación específica para Google Gemini"""
     headers = {'Content-Type': 'application/json'}
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    modelos = [
-        st.secrets.get("GEMINI_MODEL"),
-        config["model"],
-        "gemini-1.5-flash-8b",
-        "gemini-1.5-flash-8b-latest",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-pro-latest",
-        "gemini-pro",
-    ]
-    modelos = list(dict.fromkeys([modelo for modelo in modelos if modelo]))
+    modelos = obtener_modelos_gemini_disponibles(api_key, config)
     errores = []
     
     for modelo in modelos:
@@ -403,7 +420,20 @@ def llamar_gemini(prompt, api_key, config):
         if response.status_code != 404:
             break
     
-    return None, " | ".join(errores)
+    return None, " | ".join(errores) if errores else "No se encontraron modelos Gemini disponibles con generateContent"
+
+def llamar_gemini_api(prompt):
+    """Llama a la API de Gemini usando REST"""
+    api_key = st.secrets.get("GOOGLE_API_KEY")
+    
+    if not api_key:
+        return None, "No se encontró la clave de API"
+    
+    config = {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "model": st.secrets.get("GEMINI_MODEL", "gemini-1.5-flash-latest")
+    }
+    return llamar_gemini(prompt, api_key, config)
 
 def llamar_deepseek(prompt, api_key, config):
     """Implementación específica para DeepSeek"""
