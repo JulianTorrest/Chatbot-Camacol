@@ -9,6 +9,7 @@ from config import AI_PROVIDERS, AIModel
 # Configuración de la página
 st.set_page_config(
     page_title="CAMACOL Chatbot",
+    page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -262,7 +263,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.messages.append({
         "role": "assistant",
-        "content": "¡Hola!  Soy el asistente virtual de CAMACOL. Estoy aquí para ayudarte con información sobre la Cámara Colombiana de la Construcción, servicios del sector constructor, normatividad, eventos y más. ¿En qué puedo ayudarte?"
+        "content": "¡Hola! 👋 Soy el asistente virtual de CAMACOL. Estoy aquí para ayudarte con información sobre la Cámara Colombiana de la Construcción, servicios del sector constructor, normatividad, eventos y más. ¿En qué puedo ayudarte?"
     })
 
 if "chat_history_file" not in st.session_state:
@@ -278,14 +279,14 @@ if "tema" not in st.session_state:
 def verificar_autenticacion():
     """Verifica si el usuario está autenticado"""
     if not st.session_state.authenticated:
-        st.title(" Acceso al Chatbot CAMACOL")
+        st.title("🔐 Acceso al Chatbot CAMACOL")
         st.markdown("---")
         
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             password = st.text_input("Contraseña", type="password", key="password_input")
             
-            if st.button(" Iniciar Sesión", use_container_width=True):
+            if st.button("🔓 Iniciar Sesión", use_container_width=True):
                 # Obtener contraseña desde secrets o usar por defecto
                 password_correcta = st.secrets.get("CHATBOT_PASSWORD", "camacol2024")
                 
@@ -293,10 +294,10 @@ def verificar_autenticacion():
                     st.session_state.authenticated = True
                     st.rerun()
                 else:
-                    st.error("Contraseña incorrecta")
+                    st.error("❌ Contraseña incorrecta")
         
         st.markdown("---")
-        st.info("Contacta al administrador para obtener acceso")
+        st.info("💡 Contacta al administrador para obtener acceso")
         st.stop()
 
 # Funciones de historial persistente
@@ -451,7 +452,7 @@ def llamar_gemini_api(prompt):
     if not api_key:
         return None, "No se encontró la clave de API"
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     headers = {'Content-Type': 'application/json'}
     
@@ -488,7 +489,7 @@ verificar_autenticacion()
 
 # Sidebar
 with st.sidebar:
-    st.title(" CAMACOL")
+    st.title("🏗️ CAMACOL")
     st.markdown("**Chatbot Inteligente**")
     st.markdown("---")
     
@@ -518,7 +519,7 @@ with st.sidebar:
         archivo_seleccionado = st.selectbox("Selecciona un chat", historicos)
         if st.button("📂 Cargar Chat", use_container_width=True):
             if cargar_historial(archivo_seleccionado):
-                st.success("Chat cargado")
+                st.success("✅ Chat cargado")
                 st.rerun()
     else:
         st.info("No hay chats guardados")
@@ -526,21 +527,21 @@ with st.sidebar:
     st.markdown("---")
     
     # Exportar conversación
-    st.markdown("### Exportar")
+    st.markdown("### 📤 Exportar")
     
     col1, col2 = st.columns(2)
     with col1:
         texto = exportar_texto()
-        st.download_button("TXT", texto, "conversacion.txt", "text/plain", use_container_width=True)
+        st.download_button("📄 TXT", texto, "conversacion.txt", "text/plain", use_container_width=True)
     
     with col2:
         json_data = exportar_json()
-        st.download_button("JSON", json_data, "conversacion.json", "application/json", use_container_width=True)
+        st.download_button("📦 JSON", json_data, "conversacion.json", "application/json", use_container_width=True)
     
     st.markdown("---")
     
     # Búsqueda
-    st.markdown("### Búsqueda")
+    st.markdown("### 🔍 Búsqueda")
     busqueda = st.text_input("Buscar en conversación", "")
     if busqueda:
         resultados = []
@@ -569,16 +570,16 @@ with st.sidebar:
     
     # Info
     st.markdown("---")
-    st.markdown("### Información")
+    st.markdown("### ℹ️ Información")
     st.info("Este chatbot utiliza Google AI (Gemini 2.0 Flash) para proporcionar información sobre CAMACOL.")
     
     # Cerrar sesión
-    if st.button("Cerrar Sesión", use_container_width=True):
+    if st.button("🚪 Cerrar Sesión", use_container_width=True):
         st.session_state.authenticated = False
         st.rerun()
 
 # Área principal
-st.title("Chatbot CAMACOL")
+st.title("🏗️ Chatbot CAMACOL")
 st.markdown("**Tu asistente virtual para información sobre construcción en Colombia**")
 
 # Selector de tema en acción
@@ -597,10 +598,10 @@ st.markdown("---")
 # Información del chatbot
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.info("Este chatbot utiliza Google AI (Gemini), Open AI y DEEP SEEK para proporcionar información sobre CAMACOL y el sector constructor en Colombia.")
+    st.info("💡 Este chatbot utiliza Google AI (Gemini) para proporcionar información sobre CAMACOL y el sector constructor en Colombia.")
 
 # Preguntas sugeridas
-st.markdown("### Preguntas sugeridas")
+st.markdown("### 💡 Preguntas sugeridas")
 col1, col2 = st.columns(2)
 
 sugestiones = [
@@ -661,7 +662,7 @@ PREGUNTA DEL USUARIO: {prompt}
 
 RESPUESTA:"""
                 
-                respuesta, error = llamar_gemini_api(full_prompt)
+                respuesta, proveedor = obtener_respuesta_ia(full_prompt)
                 
                 if respuesta:
                     st.markdown(respuesta)
@@ -669,7 +670,7 @@ RESPUESTA:"""
                     # Guardar automáticamente después de cada respuesta
                     guardar_historial()
                 else:
-                    error_msg = f"Lo siento, ocurrió un error: {error}"
+                    error_msg = f"Lo siento, ocurrió un error: {proveedor}"
                     st.error(error_msg)
                     st.session_state.messages.append({"role": "assistant", "content": error_msg})
                     
@@ -683,6 +684,6 @@ st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
     <p>Chatbot desarrollado para CAMACOL - Cámara Colombiana de la Construcción</p>
-    <p>Desarrollado por  la Jefatura de Estudios Economicos e Información Estrategica de Camacol Presidencia</p>
+    <p>Powered by proveedores IA configurados & Streamlit</p>
 </div>
 """, unsafe_allow_html=True)
