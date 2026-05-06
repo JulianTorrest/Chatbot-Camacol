@@ -376,17 +376,34 @@ def llamar_api_ia(prompt, provider_config):
 
 def llamar_gemini(prompt, api_key, config):
     """Implementación específica para Google Gemini"""
-    url = f"{config['base_url']}/{config['model']}:generateContent?key={api_key}"
     headers = {'Content-Type': 'application/json'}
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    modelos = [
+        st.secrets.get("GEMINI_MODEL"),
+        config["model"],
+        "gemini-1.5-flash-8b",
+        "gemini-1.5-flash-8b-latest",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro-latest",
+        "gemini-pro",
+    ]
+    modelos = list(dict.fromkeys([modelo for modelo in modelos if modelo]))
+    errores = []
     
-    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    for modelo in modelos:
+        url = f"{config['base_url']}/{modelo}:generateContent?key={api_key}"
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'candidates' in data and data['candidates']:
+                return data['candidates'][0]['content']['parts'][0]['text'], None
+        
+        errores.append(f"{modelo}: Error {response.status_code}: {response.text}")
+        if response.status_code != 404:
+            break
     
-    if response.status_code == 200:
-        data = response.json()
-        if 'candidates' in data and data['candidates']:
-            return data['candidates'][0]['content']['parts'][0]['text'], None
-    return None, f"Error {response.status_code}: {response.text}"
+    return None, " | ".join(errores)
 
 def llamar_deepseek(prompt, api_key, config):
     """Implementación específica para DeepSeek"""
