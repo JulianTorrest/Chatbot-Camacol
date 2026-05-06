@@ -21,7 +21,7 @@ AI_PROVIDERS = [
     {
         "name": "Google Gemini",
         "type": AIModel.GEMINI,
-        "model": "gemini-2.0-flash-exp",
+        "model": "gemini-1.5-flash",
         "api_key_env": "GOOGLE_API_KEY",
         "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
         "priority": 1,
