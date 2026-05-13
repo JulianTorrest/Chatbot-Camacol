@@ -1,0 +1,104 @@
+@startuml
+' Diagrama PlantUML: Relación de tests con módulos del sistema
+
+skinparam componentStyle rectangle
+skinparam wrapWidth 240
+skinparam maxMessageSize 220
+
+title Tests del proyecto - relación con módulos core
+
+package "Flujo principal (runtime)" {
+  [Streamlit\n(app.py)] as APP
+  [Telegram\n(bot_telegram.py)] as TG
+}
+
+package "Módulos core" {
+  [Reasoning\n(reasoning_system.py)] as RS
+  [Coyuntura\n(lanzamientos/iniciaciones/oferta...)] as COY
+  [LIVO SQL\n(livo_sql.py)] as LIVO
+  [RAG\n(rag_system.py)] as RAG
+  [LLM Router\n(llm_providers.py)] as LLM
+  [Config\n(config.py)] as CFG
+  [Visualización\n(visualization_system.py)] as VIZ
+  [Integración Streamlit\n(streamlit_integration.py)] as STINT
+}
+
+package "Tests (scripts)" {
+  [test_local.py\n(smoke/local config)] as TLOCAL
+  [test_apis.py\n(LLM connectivity)] as TAPIS
+  [test_modelos.py\n(Gemini models)] as TMODELOS
+
+  [test_reasoning.py\n(reasoning demos)] as TREAS
+  [test_variables_criticas_livo.py\n(critical vars)] as TVAR
+  [test_periodos_temporales.py\n(temporal handling)] as TPER
+  [test_definiciones_temporales_correctas.py\n(temporal definitions)] as TDEF
+  [test_clasificacion_temporal.py\n(temporal classification)] as TCT
+  [test_clasificacion_valor.py\n(value-based VIS/VIP)] as TCV
+  [test_clasificacion_valor_simple.py\n(simplified value rules)] as TCVS
+  [test_salario_oficial_2025.py\n(salary ranges)] as TSAL
+
+  [test_lanzamientos_coyuntura.py\n(coyuntura lanzamientos)] as TLAN
+  [test_iniciaciones_coyuntura.py\n(coyuntura iniciaciones)] as TINI
+  [test_oferta_coyuntura.py\n(coyuntura oferta)] as TOFE
+
+  [test_automatic_charts.py\n(auto chart decision)] as TCH
+  [test_visualization_integration.py\n(viz integration)] as TVIZ
+
+  [test_preguntas_clave.py\n(mass audit + Excel)] as TMASS
+}
+
+' Runtime -> core
+APP --> RS
+APP --> COY
+APP --> LIVO
+APP --> RAG
+APP --> LLM
+
+TG --> RS
+TG --> COY
+TG --> LIVO
+TG --> RAG
+TG --> LLM
+
+' Tests -> core
+TLOCAL --> APP
+TLOCAL --> CFG
+
+TAPIS --> LLM
+TAPIS --> CFG
+
+TMODELOS --> CFG
+
+TREAS --> RS
+TVAR --> RS
+TPER --> RS
+TDEF --> RS
+TCT --> RS
+TCV --> RS
+TCV --> LIVO
+TCVS --> RS
+TSAL --> LIVO
+
+TLAN --> COY
+TLAN --> RS
+TINI --> COY
+TINI --> RS
+TOFE --> COY
+
+TCH --> LIVO
+TVIZ --> VIZ
+TVIZ --> LIVO
+TVIZ --> STINT
+
+TMASS --> LIVO
+TMASS --> RAG
+TMASS --> LLM
+TMASS --> RS
+
+note right of APP
+Los tests NO son importados
+por el flujo principal.
+Se ejecutan manualmente.
+end note
+
+@enduml
