@@ -7,6 +7,8 @@ Permite consultar cualquier Excel usando DuckDB y Text-to-SQL con LLM.
 import duckdb
 import pandas as pd
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 from typing import Tuple, Optional, List, Dict, Any
 import traceback
 import re
@@ -309,7 +311,7 @@ if __name__ == "__main__":
     FAST_PROVIDER = next((p for p in AI_PROVIDERS if p["name"] == "Groq"), None)
     def mock_llm(prompt): return llamar_api_ia(prompt, FAST_PROVIDER)
 
-    RAG_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG")
+    RAG_FOLDER = BASE_DIR / 'RAG'
     print(f"📂 Buscando archivos Excel en: {RAG_FOLDER}")
     
     # Excluir archivos que ya tienen sus propios sistemas (LIVO y Coyuntura)

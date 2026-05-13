@@ -32,6 +32,8 @@ que para tu ejemplo debe devolver 20816.
 from __future__ import annotations
 
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 from typing import Dict, List
 
 import duckdb
@@ -40,7 +42,7 @@ import re
 
 # Rutas de los archivos de tablas de coyuntura (ajusta si cambian)
 BASE_FOLDER = Path(
-    r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana"
+    str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana')
 )
 
 COYUNTURA_FILES: Dict[str, Path] = {

@@ -16,6 +16,8 @@ ESTRATEGIA:
 import os
 from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent
+
 # Importar los sistemas de coyuntura para acceder a sus datos
 from ventas_coyuntura import ventas_coyuntura
 from oferta_coyuntura import oferta_coyuntura
@@ -29,7 +31,7 @@ from llm_providers import llamar_api_ia
 from config import AI_PROVIDERS
 
 # --- CONFIGURACIÓN ---
-RAG_COYUNTURA_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\coyuntura_autogenerado")
+RAG_COYUNTURA_FOLDER = BASE_DIR / 'RAG' / 'coyuntura_autogenerado'
 RAG_COYUNTURA_FOLDER.mkdir(exist_ok=True, parents=True)
 
 # Usaremos Groq por ser rápido y gratuito para esta tarea

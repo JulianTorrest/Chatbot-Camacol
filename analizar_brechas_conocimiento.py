@@ -10,6 +10,8 @@ para identificar brechas de conocimiento en los diferentes sistemas del agente.
 import os
 from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent
+
 # Importar los sistemas a auditar
 from livo_sql import LIVOSQLSystem
 from rag_system import RAGSystem
@@ -17,7 +19,7 @@ from llm_providers import llamar_api_ia
 from config import AI_PROVIDERS
 
 # --- CONFIGURACIÓN ---
-RAG_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG")
+RAG_FOLDER = BASE_DIR / 'RAG'
 LIVO_PATH = RAG_FOLDER / "2025" / "Coordenada Urbana" / "LIVO_total_oct25_.xlsx"
 
 # Usaremos un LLM rápido para la generación de preguntas

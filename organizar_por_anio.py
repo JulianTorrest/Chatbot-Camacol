@@ -9,6 +9,8 @@ import os
 import re
 import shutil
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 from datetime import datetime
 
 # Procesamiento de documentos
@@ -245,7 +247,7 @@ def main():
     
     parser = argparse.ArgumentParser(description='Organiza documentos web scraped por año')
     parser.add_argument('--rag-folder', type=str, 
-                       default=r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG",
+                       default=str(BASE_DIR / 'RAG'),
                        help='Ruta a la carpeta RAG')
     parser.add_argument('--dry-run', action='store_true',
                        help='Modo simulación (no mueve archivos)')

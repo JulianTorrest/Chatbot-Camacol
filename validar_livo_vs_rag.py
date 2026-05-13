@@ -21,6 +21,9 @@ Uso:
 import re
 import logging
 from tqdm import tqdm
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 
 # --- Configuración de Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -37,7 +40,7 @@ class Colors:
 try:
     from livo_sql import LIVOSQLSystem
     from advanced_reasoning import analizar_y_responder # CORRECCIÓN FINAL: El nombre de la función es en español
-    LIVO_PATH = r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana\LIVO_total_nov25_.xlsx"
+    LIVO_PATH = str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_nov25_.xlsx')
     livo_sql_system = LIVOSQLSystem(LIVO_PATH)
     exito_livo, mensaje_livo = livo_sql_system.inicializar()
     if not exito_livo:
@@ -52,7 +55,7 @@ except (ImportError, RuntimeError) as e:
         logger.error(f"❌ No se pudo inicializar el sistema LIVO SQL. Error: {e}")
     livo_sql_system = None
 
-RAG_FILE_PATH = r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\preguntas_oferta_autogeneradas.txt"
+RAG_FILE_PATH = str(BASE_DIR / 'preguntas_oferta_autogeneradas.txt')
 
 def parse_rag_file(file_path):
     """Parsea el archivo de preguntas y respuestas y devuelve una lista de tuplas (pregunta, respuesta)."""

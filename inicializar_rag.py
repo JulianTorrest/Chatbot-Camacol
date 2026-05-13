@@ -7,13 +7,15 @@ Ejecuta este script UNA VEZ para procesar y cachear todos los documentos
 
 import sys
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 import concurrent.futures
 import hashlib
 import json
 from rag_system import RAGSystem
 
 # Configuración
-RAG_FOLDER = r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG"
+RAG_FOLDER = str(BASE_DIR / 'RAG')
 CACHE_FOLDER = "./rag_cache"
 
 def main():

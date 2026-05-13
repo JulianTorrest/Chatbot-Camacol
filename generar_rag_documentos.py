@@ -11,6 +11,8 @@ conversacional sobre los documentos no estructurados.
 
 import os
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 import time
 
 from llm_providers import llamar_api_ia
@@ -19,10 +21,10 @@ from config import AI_PROVIDERS
 # --- CONFIGURACIÓN ---
 
 # 1. Ruta a la carpeta RAG principal
-RAG_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG")
+RAG_FOLDER = BASE_DIR / 'RAG'
 
 # 2. Carpeta de destino para los documentos RAG generados
-RAG_OUTPUT_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\documentos_qa_autogenerado")
+RAG_OUTPUT_FOLDER = BASE_DIR / 'RAG' / 'documentos_qa_autogenerado'
 RAG_OUTPUT_FOLDER.mkdir(exist_ok=True, parents=True)
 
 # 3. Usaremos Groq por ser rápido y gratuito

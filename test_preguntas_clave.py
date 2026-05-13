@@ -11,6 +11,8 @@ import sys
 import logging
 import pandas as pd
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 from datetime import datetime
 import time
 
@@ -19,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
 # --- CONFIGURACIÓN DE RUTAS ---
-BASE_DIR = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main")
+BASE_DIR = BASE_DIR
 RAG_FOLDER = BASE_DIR / "RAG"
 LIVO_PATH = RAG_FOLDER / "2025" / "Coordenada Urbana" / "LIVO_total_nov25_.xlsx"
 

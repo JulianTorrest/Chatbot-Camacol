@@ -11,6 +11,8 @@ que se guardan como documentos de texto para el sistema RAG.
 import os
 import pandas as pd
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 import time
 
 # Importar el LLM para generar las preguntas
@@ -20,7 +22,7 @@ from config import AI_PROVIDERS
 # --- CONFIGURACIÓN ---
 
 # 1. Ruta a la carpeta que contiene el archivo CSV del CEED
-CSV_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\DANE\Censo de Edificaciones - CEED - 2007 - 2025 - II Trimestre")
+CSV_FOLDER = BASE_DIR / 'RAG' / '2025' / 'DANE' / 'Censo de Edificaciones - CEED - 2007 - 2025 - II Trimestre'
 
 # 2. Lista de los archivos CSV a procesar
 CSV_FILES = [
@@ -28,7 +30,7 @@ CSV_FILES = [
 ]
 
 # 3. Carpeta de destino para los documentos RAG generados
-RAG_OUTPUT_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\ceed_autogenerado")
+RAG_OUTPUT_FOLDER = BASE_DIR / 'RAG' / 'ceed_autogenerado'
 RAG_OUTPUT_FOLDER.mkdir(exist_ok=True, parents=True)
 
 # 4. Usaremos Groq por ser rápido y gratuito para esta tarea de generación masiva

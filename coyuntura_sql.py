@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 from typing import Optional, Tuple, Any
 from datetime import datetime
 
@@ -30,7 +32,7 @@ class CoyunturaConfig:
 
     # Ruta a la base DuckDB generada por coyuntura_duckdb.py
     db_path: Path = Path(
-        r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana\coyuntura.duckdb"
+        str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'coyuntura.duckdb')
     )
 
 
@@ -201,7 +203,7 @@ def _leer_oferta_desde_excel(
 
     try:
         base_folder = Path(
-            r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana"
+            str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana')
         )
         excel_path = base_folder / "Tablas_de_Coyuntura_nov25.xlsx"
 

@@ -13,6 +13,8 @@ para identificar y enrutar consultas LIVO.
 import os
 import pandas as pd
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 import time
 import random
 
@@ -23,10 +25,10 @@ from config import AI_PROVIDERS
 # --- CONFIGURACIÓN ---
 
 # 1. Ruta al archivo LIVO principal
-LIVO_EXCEL_PATH = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana\LIVO_total_oct25_.xlsx")
+LIVO_EXCEL_PATH = BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_oct25_.xlsx'
 
 # 2. Carpeta de destino para los documentos RAG generados
-RAG_OUTPUT_FOLDER = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\livo_preguntas_autogenerado")
+RAG_OUTPUT_FOLDER = BASE_DIR / 'RAG' / 'livo_preguntas_autogenerado'
 RAG_OUTPUT_FOLDER.mkdir(exist_ok=True, parents=True)
 
 # 3. Configuración del LLM (usaremos Groq por ser rápido y gratuito)

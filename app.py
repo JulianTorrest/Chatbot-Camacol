@@ -4,6 +4,8 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 import uuid
 from typing import Optional
 from config import AI_PROVIDERS, AIModel
@@ -15,7 +17,7 @@ from advanced_reasoning import analizar_y_responder
 # Importar analizador de datos
 try:
     from data_analyzer import DataAnalyzer
-    EXCEL_PATH = r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana\LIVO_total_nov25_.xlsx"
+    EXCEL_PATH = str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_nov25_.xlsx')
     DATA_ANALYZER_AVAILABLE = True
 except Exception as e:
     DATA_ANALYZER_AVAILABLE = False
@@ -24,7 +26,7 @@ except Exception as e:
 # Importar sistema RAG
 try:
     from rag_system import RAGSystem
-    RAG_FOLDER = r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG"
+    RAG_FOLDER = str(BASE_DIR / 'RAG')
     RAG_AVAILABLE = True
 except Exception as e:
     RAG_AVAILABLE = False
@@ -33,7 +35,7 @@ except Exception as e:
 # Importar sistema LIVO SQL (DuckDB)
 try:
     from livo_sql import LIVOSQLSystem
-    LIVO_PATH = r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana\LIVO_total_nov25_.xlsx"
+    LIVO_PATH = str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_nov25_.xlsx')
     LIVO_SQL_AVAILABLE = True
 except Exception as e:
     LIVO_SQL_AVAILABLE = False
@@ -625,7 +627,7 @@ def procesar_con_prioridad_livo(pregunta: str) -> tuple:
         
         # PASO 1: Si necesita análisis Y hay archivos de datos, intentar LIVO PRIMERO
         if resultado["needs_analysis"] and resultado["data_files"]:
-            livo_path = Path(r"C:\Users\jytorres\OneDrive - CAMACOL\Documentos\Coordinación de Información Estrategica\Chatbot-Camacol-main\RAG\2025\Coordenada Urbana\LIVO_total_nov25_.xlsx")
+            livo_path = BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_nov25_.xlsx'
             
             # Verificar si LIVO está en la lista de archivos
             if livo_path.exists() and livo_path in resultado["data_files"]:
