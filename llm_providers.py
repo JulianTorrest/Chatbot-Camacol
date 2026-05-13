@@ -24,8 +24,12 @@ def llamar_api_ia(prompt, provider_config):
     
     # Para el resto, obtener API key
     import os
-    from dotenv import load_dotenv
-    load_dotenv()
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ModuleNotFoundError:
+        pass
+
     # Usamos os.getenv para que funcione en cualquier entorno (Streamlit, Telegram, etc.)
     api_key = os.getenv(provider_config["api_key_env"])
     
