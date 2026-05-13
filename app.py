@@ -14,6 +14,12 @@ from feedback_system import log_feedback
 from advanced_reasoning import analizar_seguridad_pregunta
 from advanced_reasoning import analizar_y_responder
 
+try:
+    from user_profile_manager import user_profile_manager
+except Exception as e:
+    user_profile_manager = None
+    print(f"⚠️ Gestor de perfiles de usuario no disponible: {e}")
+
 # Importar analizador de datos
 try:
     from data_analyzer import DataAnalyzer
@@ -1912,7 +1918,7 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
                 
                 # Obtener perfil del usuario para personalizar la respuesta
                 historial_preguntas = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
-                perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas)
+                perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas) if user_profile_manager else "General"
                 
                 # Generar respuesta con razonamiento causal
                 resultado = analizar_y_responder(
@@ -1947,7 +1953,7 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
                 st.stop()
             # --- MEJORA: Inferencia de Perfil, Deseo y Emoción ---
             historial_preguntas = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
-            perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas)
+            perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas) if user_profile_manager else "General"
             deseo_profundo = inferir_deseo_profundo(prompt)
             tono_emocional = analizar_tono_emocional(prompt)
             
