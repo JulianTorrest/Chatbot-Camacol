@@ -2,6 +2,8 @@ import streamlit as st
 import requests
 import json
 import os
+import zipfile
+import io
 from datetime import datetime
 from pathlib import Path
 
@@ -13,6 +15,42 @@ from llm_providers import llamar_api_ia
 from feedback_system import log_feedback
 from advanced_reasoning import analizar_seguridad_pregunta
 from advanced_reasoning import analizar_y_responder
+
+# Función para descargar y descomprimir RAG desde GitHub Releases
+def descargar_rag_desde_releases():
+    """Descarga y descomprime la carpeta RAG desde GitHub Releases si no existe localmente"""
+    rag_folder = BASE_DIR / 'RAG'
+    
+    # Si la carpeta RAG ya existe, no hacer nada
+    if rag_folder.exists() and any(rag_folder.iterdir()):
+        print("✅ Carpeta RAG ya existe localmente")
+        return True
+    
+    try:
+        print("📥 Descargando RAG desde GitHub Releases...")
+        
+        # URL del release (debes crear el release primero y actualizar esta URL)
+        release_url = "https://github.com/JulianTorrest/Chatbot-Camacol/releases/download/v1.0/RAG_backup.zip"
+        
+        response = requests.get(release_url, timeout=300)
+        response.raise_for_status()
+        
+        print("📦 Descomprimiendo archivos RAG...")
+        
+        # Descomprimir en memoria
+        with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
+            zip_ref.extractall(BASE_DIR)
+        
+        print("✅ RAG descargado y descomprimido exitosamente")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error descargando RAG: {e}")
+        print("⚠️ El sistema funcionará sin RAG si la descarga falla")
+        return False
+
+# Descargar RAG al inicio
+descargar_rag_desde_releases()
 
 try:
     from user_profile_manager import user_profile_manager

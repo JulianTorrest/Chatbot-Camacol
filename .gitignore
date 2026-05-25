@@ -53,6 +53,12 @@ historial_chats/
 rag_cache/
 scraped_data/
 
+# RAG folder (descargado dinámicamente desde GitHub Releases)
+RAG/
+
+# Backup zip
+RAG_backup.zip
+
 .env
 .env.*
 
