@@ -16,41 +16,8 @@ from feedback_system import log_feedback
 from advanced_reasoning import analizar_seguridad_pregunta
 from advanced_reasoning import analizar_y_responder
 
-# Función para descargar y descomprimir RAG desde GitHub Releases
-def descargar_rag_desde_releases():
-    """Descarga y descomprime la carpeta RAG desde GitHub Releases si no existe localmente"""
-    rag_folder = BASE_DIR / 'RAG'
-    
-    # Si la carpeta RAG ya existe, no hacer nada
-    if rag_folder.exists() and any(rag_folder.iterdir()):
-        print("✅ Carpeta RAG ya existe localmente")
-        return True
-    
-    try:
-        print("📥 Descargando RAG desde GitHub Releases...")
-        
-        # URL del release (debes crear el release primero y actualizar esta URL)
-        release_url = "https://github.com/JulianTorrest/Chatbot-Camacol/releases/download/v1.0/RAG_backup.zip"
-        
-        response = requests.get(release_url, timeout=300)
-        response.raise_for_status()
-        
-        print("📦 Descomprimiendo archivos RAG...")
-        
-        # Descomprimir en memoria
-        with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
-            zip_ref.extractall(BASE_DIR)
-        
-        print("✅ RAG descargado y descomprimido exitosamente")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error descargando RAG: {e}")
-        print("⚠️ El sistema funcionará sin RAG si la descarga falla")
-        return False
-
-# Descargar RAG al inicio
-descargar_rag_desde_releases()
+# RAG deshabilitado para Streamlit Cloud (repositorio muy pesado)
+# El sistema funcionará solo con Coyuntura, LIVO SQL y LLM
 
 try:
     from user_profile_manager import user_profile_manager
@@ -67,14 +34,9 @@ except Exception as e:
     DATA_ANALYZER_AVAILABLE = False
     print(f"⚠️ Analizador de datos no disponible: {e}")
 
-# Importar sistema RAG
-try:
-    from rag_system import RAGSystem
-    RAG_FOLDER = str(BASE_DIR / 'RAG')
-    RAG_AVAILABLE = True
-except Exception as e:
-    RAG_AVAILABLE = False
-    print(f"⚠️ Sistema RAG no disponible: {e}")
+# RAG deshabilitado para reducir tamaño del repositorio en Streamlit Cloud
+RAG_AVAILABLE = False
+print("ℹ️ RAG deshabilitado - usando solo Coyuntura, LIVO SQL y LLM")
 
 # Importar sistema LIVO SQL (DuckDB)
 try:
@@ -444,40 +406,6 @@ if "tema" not in st.session_state:
 
 if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())
-
-# Inicializar sistema RAG con cache
-@st.cache_resource
-def inicializar_rag_system():
-    """Inicializa RAG una sola vez usando cache de Streamlit"""
-    if not RAG_AVAILABLE:
-        print("❌ RAG_AVAILABLE es False")
-        return None, False
-    
-    try:
-        print(f"\n🔍 Inicializando RAG System...")
-        print(f"RAG_FOLDER: {RAG_FOLDER}")
-        
-        rag_system = RAGSystem(RAG_FOLDER)
-        exito, mensaje = rag_system.inicializar()
-        
-        if exito:
-            print(f"✅ RAG: {mensaje}")
-            return rag_system, True
-        else:
-            print(f"⚠️ RAG: {mensaje}")
-            return None, False
-            
-    except Exception as e:
-        import traceback
-        print(f"❌ Error RAG: {e}")
-        print(f"Traceback completo:\n{traceback.format_exc()}")
-        return None, False
-
-# Inicializar sistema RAG
-if "rag_system" not in st.session_state and RAG_AVAILABLE:
-    rag_system, rag_ok = inicializar_rag_system()
-    st.session_state.rag_system = rag_system
-    st.session_state.rag_initialized = rag_ok
 
 # Inicializar sistema LIVO SQL (DuckDB) con cache
 @st.cache_resource
@@ -970,13 +898,7 @@ RESPUESTA MEJORADA:"""
             return True, resultado_final
         print("⚠️ LIVO SQL falló, pasando a RAG...")
 
-    # 3. Fallback a RAG
-    if RAG_AVAILABLE and rag_system:
-        print("📚 Fallback a RAG...")
-        exito_rag, respuesta_rag = procesar_consulta_rag(pregunta)
-        if exito_rag:
-            return True, respuesta_rag
-        print("⚠️ RAG falló, pasando a LLM general...")
+    # 3. RAG deshabilitado para Streamlit Cloud
 
     # 4. Fallback a LLM General
     print("🤖 Fallback a LLM General...")
