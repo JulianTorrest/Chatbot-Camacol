@@ -1,0 +1,135 @@
+@startuml
+' PlantUML - Arquitectura y flujos (Chatbot CAMACOL)
+' Archivo listo para usar en PlantUML (VS Code plugin / plantuml.com / Kroki)
+
+skinparam componentStyle rectangle
+skinparam wrapWidth 220
+skinparam maxMessageSize 200
+
+title Chatbot CAMACOL - Componentes y Flujos
+
+' =============================
+' 1) Diagrama de Componentes
+' =============================
+
+package "Canales" {
+  [Streamlit UI\n(app.py)] as ST
+  [Telegram Bot\n(bot_telegram.py)] as TG
+  [WhatsApp (preparado)\n(whatsapp_integration.py)] as WA
+}
+
+package "Core" {
+  [Configuración\n(config.py)] as CFG
+  [LLM Router\n(llm_providers.py)] as LLM
+  [RAG Engine\n(rag_system.py)] as RAG
+  [LIVO SQL\n(livo_sql.py)] as LIVO
+  [Reasoning\n(reasoning_system.py)] as RS
+  [Advanced Reasoning\n(advanced_reasoning.py)] as AR
+  [Feedback\n(feedback_system.py)] as FB
+}
+
+package "Datos" {
+  folder "Documentos\n(RAG/)" as RAGF
+  folder "Cache\n(rag_cache/)" as RC
+  folder "Archivos de datos\n(Excel/CSV/PDF...)" as DATA
+  database "Logs\n(feedback_log.json\ntelegram_interactions_log.xlsx)" as LOGS
+}
+
+ST --> CFG
+ST --> LLM
+ST --> RAG
+ST --> LIVO
+ST --> RS
+
+TG --> CFG
+TG --> LLM
+TG --> RAG
+TG --> LIVO
+TG --> RS
+TG --> AR
+TG --> FB
+
+WA --> LLM
+WA --> AR
+
+RAG --> RAGF
+RAG --> RC
+LIVO --> DATA
+FB --> LOGS
+TG --> LOGS
+
+newpage
+
+' =============================
+' 2) Flujo Streamlit (app.py)
+' =============================
+
+title Flujo de decisión - Streamlit (app.py)
+
+start
+:Usuario escribe pregunta (UI Streamlit);
+:Normalización / detección de intención;
+
+if (¿Consulta Coyuntura?) then (sí)
+  :procesar_consulta_coyuntura();
+  if (¿OK?) then (sí)
+    :Respuesta final;
+    stop
+  else (no)
+    :Fallback;
+  endif
+endif
+
+if (¿Consulta LIVO?) then (sí)
+  :procesar_con_prioridad_livo();
+  if (¿OK?) then (sí)
+    :Respuesta final;
+    stop
+  else (no)
+    :Fallback;
+  endif
+endif
+
+if (¿Consulta Documentos RAG?) then (sí)
+  :procesar_consulta_rag();
+  if (¿OK?) then (sí)
+    :Respuesta final;
+    stop
+  else (no)
+    :Fallback;
+  endif
+endif
+
+:LLM general (llm_providers);
+:Respuesta final;
+stop
+
+newpage
+
+' =============================
+' 3) Flujo Telegram (bot_telegram.py)
+' =============================
+
+title Flujo de decisión - Telegram (bot_telegram.py)
+
+start
+:Usuario envía mensaje (Telegram);
+:Handlers (/start /help /texto);
+:Analizar seguridad / intención\n(advanced_reasoning);
+
+if (¿Consulta de datos?) then (sí)
+  :LIVO SQL (DuckDB + Text-to-SQL);
+  :Respuesta;
+elseif (¿Consulta documental?) then (sí)
+  :RAGSystem (búsqueda en documentos);
+  :Respuesta;
+else (General)
+  :LLM Router (llm_providers);
+  :Respuesta;
+endif
+
+:Registrar interacción\n(telegram_interactions_log.xlsx);
+:Enviar mensaje a Telegram;
+stop
+
+@enduml

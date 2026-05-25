@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+venv*/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Python scripts temporales
+*.pyc
+*.pyo
+
+# Historial de chats
+historial_chats/
+
+# RAG cache
+rag_cache/
+scraped_data/
+
+# RAG folder (descargado dinámicamente desde GitHub Releases)
+RAG/
+
+# Backup zip
+RAG_backup.zip
+
+# Resultados xlsx (archivos temporales de pruebas)
+resultados_*.xlsx
+goal_seek_resultados.xlsx
+resumen_capacidades_agente.xlsx
+telegram_interactions_log.xlsx
+
+.env
+.env.*
+
