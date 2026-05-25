@@ -445,40 +445,6 @@ if "tema" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())
 
-# Inicializar sistema RAG con cache
-@st.cache_resource
-def inicializar_rag_system():
-    """Inicializa RAG una sola vez usando cache de Streamlit"""
-    if not RAG_AVAILABLE:
-        print("❌ RAG_AVAILABLE es False")
-        return None, False
-    
-    try:
-        print(f"\n🔍 Inicializando RAG System...")
-        print(f"RAG_FOLDER: {RAG_FOLDER}")
-        
-        rag_system = RAGSystem(RAG_FOLDER)
-        exito, mensaje = rag_system.inicializar()
-        
-        if exito:
-            print(f"✅ RAG: {mensaje}")
-            return rag_system, True
-        else:
-            print(f"⚠️ RAG: {mensaje}")
-            return None, False
-            
-    except Exception as e:
-        import traceback
-        print(f"❌ Error RAG: {e}")
-        print(f"Traceback completo:\n{traceback.format_exc()}")
-        return None, False
-
-# Inicializar sistema RAG
-if "rag_system" not in st.session_state and RAG_AVAILABLE:
-    rag_system, rag_ok = inicializar_rag_system()
-    st.session_state.rag_system = rag_system
-    st.session_state.rag_initialized = rag_ok
-
 # Inicializar sistema LIVO SQL (DuckDB) con cache
 @st.cache_resource
 def inicializar_livo_sql():
