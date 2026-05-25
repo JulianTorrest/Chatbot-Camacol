@@ -1,0 +1,70 @@
+@startuml
+' Pipeline de inicialización/"entrenamiento" del RAG + Web Scraper
+' Nota: este proyecto no "entrena" un modelo; construye un índice (vectorstore) a partir de documentos.
+
+skinparam wrapWidth 240
+skinparam maxMessageSize 220
+skinparam activity {
+  BackgroundColor #ffffff
+  BorderColor #333333
+}
+
+title Pipeline RAG - Recolección, generación, indexación y uso
+
+start
+:Objetivo: actualizar/crear el índice del RAG;
+
+partition "Fuentes de contenido" {
+  if (¿Tienes documentos locales?) then (sí)
+    :Colocar/actualizar archivos en ./RAG/**\n(PDF/DOCX/XLSX/CSV/PPTX/TXT);
+  endif
+
+  if (¿Quieres traer documentos desde web?) then (sí)
+    :Ejecutar web_scraper.py;
+    :Genera/actualiza urls_documentos.txt\n(lista de PDFs/Word/Excel);
+    :Guarda HTML en ./RAG/scraped_content/;
+  endif
+
+  if (¿Quieres enriquecer RAG con Q&A autogenerado?) then (sí)
+    :Ejecutar generar_rag_documentos.py\n(y/o generar_rag_*.py);
+    :Genera nuevos .txt en subcarpetas de RAG\n(ej. RAG/documentos_qa_autogenerado);
+  endif
+}
+
+partition "Inicialización del RAG (indexación)" {
+  :Ejecutar inicializar_rag.py;
+  :Calcula hashes de ./RAG para decidir incremental vs full;
+  :Crea RAGSystem(rag_folder=./RAG, cache_folder=./rag_cache);
+
+  :RAGSystem.inicializar(force_reload = cambios_detectados);
+
+  if (¿Existe ./rag_cache/vectorstore.pkl?) then (sí)
+    if (force_reload = False) then (sí)
+      :Carga cache (vectorstore.pkl + rag_manifest.json);
+      :FIN (RAG listo);
+      detach
+    else (no)
+      :Modo incremental:\n_procesar_documentos_incremental();
+      :vectorstore.add_documents(nuevos_chunks);
+      :Guardar cache actualizado;
+    endif
+  else (no)
+    :Reconstrucción total:\n_procesar_documentos() por prioridad de año (2025->2024->2023);
+    if (¿Existe urls_documentos.txt?) then (sí)
+      :_procesar_urls_desde_archivo(urls_documentos.txt)\n(descarga temporal + procesa por extensión);
+    endif
+    :FAISS.from_documents(chunks, embeddings);
+    :Guardar cache (vectorstore.pkl + rag_manifest.json);
+  endif
+}
+
+partition "Uso del RAG (runtime)" {
+  :Streamlit app.py o bot_telegram.py crean RAGSystem;
+  :RAGSystem.inicializar() (normalmente carga cache);
+  :buscar(query,k): similarity_search_with_score(k*4) + rerank por recencia;
+  :Devuelve chunks + metadatos para construir el prompt;
+}
+
+stop
+
+@enduml
