@@ -59,6 +59,12 @@ RAG/
 # Backup zip
 RAG_backup.zip
 
+# Resultados xlsx (archivos temporales de pruebas)
+resultados_*.xlsx
+goal_seek_resultados.xlsx
+resumen_capacidades_agente.xlsx
+telegram_interactions_log.xlsx
+
 .env
 .env.*
 
