@@ -2541,7 +2541,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         # EXCEPCIÓN CONCEPTUAL: Si la pregunta es teórica, legal o conceptual (e.g., "¿Qué es...?", "¿Cómo funciona...?")
         # se debe responder con el LLM (Groq) directamente en lugar de intentar generar SQL para DuckDB.
         conceptos_keywords = [
-            'que es', 'que son', 'cómo funciona', 'como funciona', 'requisito', 'requisitos',
+            'que es', 'que son', 'cómo funciona', 'como funciona',
             'diferencia', 'cual es la funcion', 'cual es la función', 'para que sirve', 'para qué sirve',
             'como solicitar', 'cómo solicitar', 'como postularse', 'cómo postularse', 'explicar', 'explicame',
             'camacol', 'coordenada urbana', 'mi casa ya', 'subsidio', 'casa', 'vivienda de interes',
@@ -2553,7 +2553,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
 
         # 1. Palabras clave de ALTA CONFIANZA (específicas de LIVO/Construcción)
         alta_confianza = [
-            'unidades', 'vis', 'vip', 'no vis', 'constructora', 'constructoras',
+            'unidades', 'vis', 'vip', 'no vis', 'constructora', 'constructoras', 'licencia', 'licencias',
             'lanzamientos', 'lanzadas', 'iniciaciones', 'iniciadas', 'vivienda', 'viviendas',
             'desistimientos', 'paralizado', 'paralizada', 'paralizando', 'culminadas', 'culminada',
             'entregadas', 'entregas', 'saldo que inicia', 'saldo inicial', 'precio_mc_promedio',
@@ -2567,7 +2567,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
                 
         # 2. Palabras clave de MEDIA CONFIANZA (compartidas con lenguaje general)
         # Solo se consideran LIVO si vienen acompañadas de un contexto relevante (operaciones, periodos, cuentas)
-        media_confianza = [
+        media_confianza_contextual = [
             'fecha', 'año_corrido', 'doce_meses', 'regional', 'departamento', 'divipola', 'ciudad', 'zona', 'barrio', 
             'estrato', 'destino_etapa', 'uso_etapa', 'modalidad', 'fase', 'last_estado', 'identificador', 
             'nuevorango_pre', 'rangos_decreto_pre', 'rango_minviv', 'rango_ppm2', 'rango_area', 'am_capital', 
@@ -2575,15 +2575,14 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
             'dia', 'momento', 'cuando', 'calendario', 'fecha de registro', 'momento de corte', 'trimestre',
             'periodo anual', 'ejercicio', 'año fiscal', 'por año', 'anualmente', 'por ano', 'anualmente',
             'ultimos 12 meses', 'ttm', 'ltm', 'año movil', 'periodo reciente', 'acumulado 12m', 'ano movil',
-            'region', 'zona grande', 'area geografica', 'macrozona', 'donde (macro)',
+            'region', 'zona grande', 'area geografica', 'macrozona', 'donde (macro)', 'ubicacion', 'ubicación',
             'provincia', 'division administrativa', 'de que departamento', 'jurisdiccion',
             'codigo divipola', 'codigo municipal', 'identificador geografico', 'codigo dane',
             'municipio', 'localidad', 'poblacion', 'urbe', 'en que ciudad', 'capital',
             'sector', 'distrito', 'subzona', 'sector geografico', 'microzona',
             'vecindario', 'comuna', 'urbanizacion', 'localidad', 'sector',
             'nivel socioeconomico', 'clase social', 'estrato social', 'nivel', 'clasificacion',
-            'destino o finalidad', 'uso', 'tipo de vivienda', 'empresa constructora',
-            'licencia', 'tipo de licencia', 'por valor', 'fase constructiva', 'ultimo estado', 
+            'destino o finalidad', 'uso', 'tipo de vivienda', 'empresa constructora', 'tipo de licencia', 'por valor', 'fase constructiva', 'ultimo estado', 
             'area metropolitana', 'segmento de precio', 'uso del proyecto', 'unidades de vivienda',
             'metros cuadrados', 'm2', 'metro cuadrado', 'area construida', 'valor en miles', 
             'precio promedio por metro', 'estado contable', 'estado de cuenta', 'tipo de saldo'
@@ -2596,23 +2595,49 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         
         # Contexto: operaciones o periodos típicos de LIVO
         operaciones = ['suma', 'promedio', 'total', 'cantidad', 'cuantos', 'cuantas', 'ranking', 'top', 'mayor', 'menor', 'distribucion', 'conteo', 'maximo', 'minimo', 'mediana', 'moda']
-        periodos = ['ene-26', 'feb-26', 'mar-26', 'abr-26', '2026', '2025', '2024', '2023']
+        periodos = ['ene-26', 'feb-26', 'mar-26', 'abr-26', '2026', '2025', '2024', '2023', 'trimestre', 'mes', 'año']
         cuentas = ['culminadas', 'entregadas', 'iniciaciones', 'lanzamientos', 'oferta', 'paralizado', 'renuncias', 'saldo que inicia', 'ventas', 'construccion', 'preventa', 'proyectado']
         
-        tiene_media_confianza = any(re.search(r'\b' + re.escape(kw) + r'\b', texto) for kw in media_confianza)
-        tiene_regional = any(re.search(r'\b' + re.escape(reg) + r'\b', texto) for reg in regionales)
-        tiene_operacion = any(re.search(r'\b' + re.escape(op) + r'\b', texto) for op in operaciones)
-        tiene_periodo = any(re.search(r'\b' + re.escape(per) + r'\b', texto) for per in periodos)
-        tiene_cuenta = any(re.search(r'\b' + re.escape(cta) + r'\b', texto) for cta in cuentas)
+        # Check for presence of high-confidence data keywords
+        has_alta_confianza_data = any(re.search(r'\b' + re.escape(kw) + r'\b', texto) for kw in alta_confianza_data)
+
+        # Check for presence of contextual data keywords
+        has_media_confianza = any(re.search(r'\b' + re.escape(kw) + r'\b', texto) for kw in media_confianza_contextual)
+        has_regional = any(re.search(r'\b' + re.escape(reg) + r'\b', texto) for reg in regionales)
+        has_operacion = any(re.search(r'\b' + re.escape(op) + r'\b', texto) for op in operaciones)
+        has_periodo = any(re.search(r'\b' + re.escape(per) + r'\b', texto) for per in periodos)
+        has_cuenta = any(re.search(r'\b' + re.escape(cta) + r'\b', texto) for cta in cuentas)
         
-        if tiene_media_confianza and tiene_operacion and (tiene_regional or tiene_periodo or tiene_cuenta):
+        # 3. Palabras clave CONCEPTUALES (que deberían ir a LLM general)
+        conceptos_keywords = [
+            'que es', 'que son', 'cómo funciona', 'como funciona', 'requisito', 'requisitos',
+            'diferencia', 'cual es la funcion', 'cual es la función', 'para que sirve', 'para qué sirve',
+            'como solicitar', 'cómo solicitar', 'como postularse', 'cómo postularse', 'explicar', 'explicame',
+            'camacol', 'coordenada urbana', 'mi casa ya', 'subsidio',
+            'ministerio de vivienda', 'ley de vivienda', 'programa', 'fondo nacional del ahorro'
+        ]
+        has_conceptual_keywords = any(kw in texto for kw in conceptos_keywords)
+
+        # Decision logic:
+        # If it has high-confidence data keywords, it's LIVO.
+        if has_alta_confianza_data:
             return True
-        if tiene_regional and tiene_cuenta:
+        
+        # If it has contextual data keywords AND an operation/region/period/account, it's LIVO.
+        if has_media_confianza and has_operacion and (has_regional or has_periodo or has_cuenta):
             return True
-        if tiene_regional and tiene_periodo and tiene_operacion:
+        if has_regional and has_cuenta: # e.g., "ventas en bogota"
+            return True
+        if has_regional and has_periodo and has_operacion: # e.g., "total unidades en bogota en 2025"
             return True
             
-        return False
+        # If it has conceptual keywords AND NO strong data keywords, it's conceptual.
+        if has_conceptual_keywords and not has_alta_confianza_data and not (has_media_confianza and has_operacion):
+            return False
+
+        # Default to LIVO if it's not clearly conceptual and has some data-like terms.
+        # This makes it more likely to try LIVO first.
+        return has_media_confianza or has_regional or has_operacion or has_periodo or has_cuenta
     
     def consultar(self, pregunta: str, llm_function, usuario: str = "default", 
                  generate_chart: bool = False, channel: str = "streamlit") -> Tuple[bool, str, Optional[Dict]]:
@@ -2636,7 +2661,7 @@ Respuesta:"""
             respuesta_general, _ = llm_function(prompt_general)
             if respuesta_general:
                 respuesta_formateada = f"🤖 **Respuesta General (IA Assistant)**\n\n{respuesta_general.strip()}"
-                return True, respuesta_formateada, None
+                return False, "Consulta no clasificada como LIVO. Usando fallback...", None
             else:
                 # Si llm_function retorna vacío o es un dummy, podemos retornar False o un fallback amigable
                 return False, "❌ Pregunta no relacionada con LIVO. Por favor, realiza una consulta sobre licencias de construcción, vivienda, ventas, oferta, lanzamientos o constructoras en Colombia.", None
@@ -4507,11 +4532,10 @@ if __name__ == "__main__":
     # Buscar archivo LIVO
     livo_path = None
     possible_paths = [
-        "RAG/2025/Coordenada Urbana/LIVO_total_nov25_.xlsx",
-        "RAG/2025/LIVO/LIVO_2025_Consolidado.xlsx",
-        "RAG/2025/LIVO/LIVO_2025.xlsx",
-        "LIVO_2025_Consolidado.xlsx",
-        "LIVO_2025.xlsx"
+        "LIVO/LIVO/LIVO_total_abr26_.xlsx",
+        "LIVO/LIVO/LIVO_total_nacional_abr26.xlsx",
+        "LIVO/LIVO/LIVO_total_NR_abr26_.xlsx",
+        "LIVO/LIVO/LIVO_total_abr26_resumen_.xlsx"
     ]
     
     for path in possible_paths:
