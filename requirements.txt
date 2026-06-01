@@ -49,3 +49,4 @@ duckdb>=0.9.0
 
 # Language detection (for LIVO system)
 langdetect>=1.0.9
+torchvision
