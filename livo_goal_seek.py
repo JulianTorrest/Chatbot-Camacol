@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Rutas de archivos
 BASE_DIR = Path(__file__).resolve().parent
 RAG_FILE_PATH = BASE_DIR / "preguntas_oferta_autogeneradas.txt"
-LIVO_PATH = BASE_DIR / "RAG" / "2025" / "Coordenada Urbana" / "LIVO_total_nov25_.xlsx"
+LIVO_PATH = BASE_DIR / "LIVO" / "LIVO" / "LIVO_total_abr26_.xlsx"
 PREV_GOAL_SEEK_PATH = BASE_DIR / "goal_seek_resultados.xlsx"
 
 
