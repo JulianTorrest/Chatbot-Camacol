@@ -28,7 +28,7 @@ except Exception as e:
 # Importar analizador de datos
 try:
     from data_analyzer import DataAnalyzer
-    EXCEL_PATH = str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_nov25_.xlsx')
+    EXCEL_PATH = str(BASE_DIR / 'LIVO' / 'LIVO' / 'LIVO_total_abr26_.xlsx')
     DATA_ANALYZER_AVAILABLE = True
 except Exception as e:
     DATA_ANALYZER_AVAILABLE = False
@@ -41,11 +41,61 @@ print("ℹ️ RAG deshabilitado - usando solo Coyuntura, LIVO SQL y LLM")
 # Importar sistema LIVO SQL (DuckDB)
 try:
     from livo_sql import LIVOSQLSystem
-    LIVO_PATH = str(BASE_DIR / 'LIVO' / 'LIVO' / 'LIVO_total_abr26_.xlsx')
+    import os
+
+    def find_path_flexible(base, relative_parts):
+        """Busca una ruta de forma flexible e insensible a mayúsculas/minúsculas para Linux."""
+        current = base
+        for part in relative_parts:
+            if not current.exists(): return None
+            found = False
+            for item in current.iterdir():
+                if item.name.lower() == part.lower():
+                    current = item
+                    found = True
+                    break
+            if not found: return None
+        return current if current.is_file() else None
+
+    # Definir la ruta base del proyecto
+    print(f"DEBUG: BASE_DIR is {BASE_DIR}")
+
+    LIVO_PATH = None
+    file_names = [
+        'LIVO_total_abr26_.xlsx', 
+        'LIVO_total_nacional_abr26.xlsx', 
+        'LIVO_total_NR_abr26_.xlsx', 
+        'LIVO_total_abr26_resumen_.xlsx'
+    ]
+    
+    # 1. Intentar buscar en LIVO/LIVO/ (insensible a mayúsculas)
+    for fname in file_names:
+        p = find_path_flexible(BASE_DIR, ['LIVO', 'LIVO', fname])
+        if p:
+            LIVO_PATH = str(p)
+            break
+            
+    # 2. Fallback: buscar en LIVO/ (por si la estructura en el repo es de un solo nivel)
+    if not LIVO_PATH:
+        for fname in file_names:
+            p = find_path_flexible(BASE_DIR, ['LIVO', fname])
+            if p:
+                LIVO_PATH = str(p)
+                break
+
+    if LIVO_PATH is None:
+        print(f"DEBUG: Archivos en raíz: {[f.name for f in BASE_DIR.iterdir()]}")
+        raise FileNotFoundError("No se encontró el archivo LIVO. Revisa mayúsculas en carpetas LIVO/LIVO.")
+    
+    # 3. Verificar si el archivo es un puntero LFS (archivo corrupto en la nube)
+    if os.path.getsize(LIVO_PATH) < 1024:
+        print(f"❌ ERROR CRÍTICO: {LIVO_PATH} es un puntero Git LFS ({os.path.getsize(LIVO_PATH)} bytes). No contiene datos reales.")
+        raise ValueError("Archivo Excel incompleto (Git LFS pointer).")
+
     LIVO_SQL_AVAILABLE = True
 except Exception as e:
     LIVO_SQL_AVAILABLE = False
-    print(f"⚠️ Sistema LIVO SQL no disponible: {e}")
+    print(f"❌ Error importando livo_sql: {e}")
 
 # Importar sistema SQL Dinámico para otros Excel
 try:
@@ -433,27 +483,30 @@ def inicializar_livo_sql():
     except Exception as e:
         print(f"⚠️ Error recargando livo_sql: {e}")
 
-    if not LIVO_SQL_AVAILABLE:
-        print("❌ LIVO_SQL_AVAILABLE es False")
+    if not LIVO_SQL_AVAILABLE or LIVO_PATH is None:
+        razon = "Error de importación" if not LIVO_SQL_AVAILABLE else "Archivo Excel LIVO no encontrado en el servidor"
+        print(f"❌ LIVO_SQL no disponible: {razon}")
+        if LIVO_PATH is None:
+            print(f"   Rutas buscadas: {[str(p) for p in POSSIBLE_LIVO_PATHS]}")
         return None, False
     
     try:
-        print(f"\n� Inicializando LIVO SQL...")
+        print(f"\n🚀 Inicializando LIVO SQL...")
         print(f"LIVO_PATH: {LIVO_PATH}")
         
         livo_system = LIVOSQLSystem(LIVO_PATH)
         exito, mensaje = livo_system.inicializar()
         
         if exito:
-            print(f"✅ LIVO SQL: {mensaje}")
+            print(f"✅ LIVO SQL cargado exitosamente: {mensaje}")
             return livo_system, True
         else:
-            print(f"⚠️ LIVO SQL: {mensaje}")
+            print(f"⚠️ Falló inicialización LIVO SQL: {mensaje}")
             return None, False
             
     except Exception as e:
         import traceback
-        print(f"❌ Error LIVO SQL: {e}")
+        print(f"❌ Error crítico en inicialización LIVO SQL: {e}")
         print(f"Traceback completo:\n{traceback.format_exc()}")
         return None, False
 
@@ -639,7 +692,6 @@ def procesar_con_prioridad_livo(pregunta: str) -> tuple:
         
         # PASO 1: Si necesita análisis Y hay archivos de datos, intentar LIVO PRIMERO
         if resultado["needs_analysis"] and resultado["data_files"]:
-            # Rutas actualizadas para archivos LIVO actuales
             livo_paths = [
                 BASE_DIR / 'LIVO' / 'LIVO' / 'LIVO_total_abr26_.xlsx',
                 BASE_DIR / 'LIVO' / 'LIVO' / 'LIVO_total_nacional_abr26.xlsx',
