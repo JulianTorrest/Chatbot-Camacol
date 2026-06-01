@@ -2653,18 +2653,8 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         
         # Clasificar si la pregunta es sobre LIVO o no (si no, responder con LLM directamente)
         if not self.es_pregunta_livo(pregunta):
-            print(f"🔮 Pregunta no relacionada con LIVO detectada, respondiendo con LLM directamente...")
-            prompt_general = f"""Responde a la siguiente consulta general en español, de forma clara, concisa e informativa.
-Pregunta del usuario: {pregunta}
-
-Respuesta:"""
-            respuesta_general, _ = llm_function(prompt_general)
-            if respuesta_general:
-                respuesta_formateada = f"🤖 **Respuesta General (IA Assistant)**\n\n{respuesta_general.strip()}"
-                return False, "Consulta no clasificada como LIVO. Usando fallback...", None
-            else:
-                # Si llm_function retorna vacío o es un dummy, podemos retornar False o un fallback amigable
-                return False, "❌ Pregunta no relacionada con LIVO. Por favor, realiza una consulta sobre licencias de construcción, vivienda, ventas, oferta, lanzamientos o constructoras en Colombia.", None
+            print(f"🔮 Consulta no clasificada como LIVO. Usando fallback...")
+            return False, "Consulta no clasificada como LIVO. Usando fallback...", None
 
         # MEJORA 2: Detección de ambigüedades
         tiene_ambiguedades, ambiguedades = self.detectar_ambiguedades(pregunta)
