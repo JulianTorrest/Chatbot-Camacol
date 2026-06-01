@@ -102,7 +102,7 @@ except Exception as e:
 # Importar sistema LIVO SQL (DuckDB)
 try:
     from livo_sql import LIVOSQLSystem
-    LIVO_PATH = str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_nov25_.xlsx')
+    LIVO_PATH = str(BASE_DIR / 'LIVO' / 'LIVO' / 'LIVO_total_abr26_.xlsx')
     LIVO_SQL_AVAILABLE = True
     logger.info("🚀 Inicializando LIVO SQL (DuckDB)...")
     livo_sql_system = LIVOSQLSystem(LIVO_PATH)
