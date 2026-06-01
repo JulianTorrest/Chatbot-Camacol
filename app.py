@@ -487,7 +487,7 @@ def inicializar_livo_sql():
         razon = "Error de importación" if not LIVO_SQL_AVAILABLE else "Archivo Excel LIVO no encontrado en el servidor"
         print(f"❌ LIVO_SQL no disponible: {razon}")
         if LIVO_PATH is None:
-            print(f"   Rutas buscadas: {[str(p) for p in POSSIBLE_LIVO_PATHS]}")
+            print(f"   Error: El sistema no pudo localizar los archivos en la carpeta LIVO/LIVO/")
         return None, False
     
     try:
