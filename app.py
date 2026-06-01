@@ -2144,16 +2144,25 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
                 
                 if LIVO_SQL_AVAILABLE and hasattr(st.session_state, 'livo_sql') and st.session_state.livo_sql:
                     with st.spinner("🚀 Consultando base de datos LIVO con SQL..."):
-                        exito, respuesta, _ = st.session_state.livo_sql.consultar(prompt, obtener_respuesta_ia)
-                        if exito:
-                            st.markdown(f"🚀 **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta}")
-                            st.session_state.messages.append({"role": "assistant", "content": respuesta})
-                            guardar_historial()
-                            respuesta_generada = True
-                            st.stop()  # Detener flujo aquí si LIVO respondió exitosamente
-                        else:
-                            # Si LIVO falló por no ser pregunta LIVO, continuar con razonamiento
-                            print(f"⚠️ LIVO SQL falló (posiblemente no es pregunta LIVO): {respuesta}")
+                        try:
+                            exito, respuesta, _ = st.session_state.livo_sql.consultar(prompt, obtener_respuesta_ia)
+                            if exito:
+                                st.markdown(f"🚀 **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta}")
+                                st.session_state.messages.append({"role": "assistant", "content": respuesta})
+                                guardar_historial()
+                                respuesta_generada = True
+                                st.stop()  # Detener flujo aquí si LIVO respondió exitosamente
+                            else:
+                                # Si es un error real del sistema LIVO (no una clasificación negativa)
+                                if "Consulta no clasificada como LIVO" not in respuesta:
+                                    st.error(f"Error en sistema LIVO: {respuesta}")
+                                    st.session_state.messages.append({"role": "assistant", "content": f"Ocurrió un error consultando LIVO: {respuesta}"})
+                                    st.stop()
+                                # Si LIVO falló por no ser pregunta LIVO, continuar con razonamiento
+                                print(f"⚠️ LIVO SQL continuó al fallback: {respuesta}")
+                        except Exception as e:
+                            print(f"❌ Error crítico en consulta LIVO SQL: {e}")
+                            # Continuar al siguiente paso en caso de error crítico
                 
                 # PASO 2: Si LIVO no respondió, intentar sistema de razonamiento
                 # NOTA: Si el razonamiento devuelve clarificaciones, NO las mostramos y continuamos al LLM general
@@ -2170,8 +2179,8 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
                             needs_clarification = analysis_result[0]
                             clarification_response = analysis_result[1]
                             
-                            # Solo mostrar respuesta si NO necesita clarificación y es válida
-                            if not needs_clarification and analysis_result[1] and analysis_result[1] != "None":
+                            # Solo mostrar respuesta si NO necesita clarificación y es válida (no es None string o None object)
+                            if not needs_clarification and analysis_result[1] and str(analysis_result[1]) != "None":
                                 # Si el razonamiento devolvió una respuesta válida
                                 st.markdown(analysis_result[1])
                                 st.session_state.messages.append({"role": "assistant", "content": analysis_result[1]})
