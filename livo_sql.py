@@ -2599,7 +2599,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         cuentas = ['culminadas', 'entregadas', 'iniciaciones', 'lanzamientos', 'oferta', 'paralizado', 'renuncias', 'saldo que inicia', 'ventas', 'construccion', 'preventa', 'proyectado']
         
         # Check for presence of high-confidence data keywords
-        has_alta_confianza_data = any(re.search(r'\b' + re.escape(kw) + r'\b', texto) for kw in alta_confianza_data)
+        has_alta_confianza_data = any(re.search(r'\b' + re.escape(kw) + r'\b', texto) for kw in alta_confianza)
 
         # Check for presence of contextual data keywords
         has_media_confianza = any(re.search(r'\b' + re.escape(kw) + r'\b', texto) for kw in media_confianza_contextual)
