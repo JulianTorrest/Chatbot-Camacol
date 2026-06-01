@@ -544,8 +544,11 @@ RECOMENDACIÓN CRÍTICA:
         # 2. Inicializar caché semántico (si está disponible)
         self.semantic_cache_embeddings = None
         if SEMANTIC_CACHE_AVAILABLE:
-            self.semantic_cache_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-            self.semantic_cache_embeddings = self._build_semantic_cache_embeddings()
+            try:
+                self.semantic_cache_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+                self.semantic_cache_embeddings = self._build_semantic_cache_embeddings()
+            except Exception as e:
+                print(f"⚠️ Error inicializando caché semántico: {e}. Continuando sin él.")
         
         # 3. Cargar historial de consultas
         self.historial = []
