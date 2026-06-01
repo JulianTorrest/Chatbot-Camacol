@@ -106,7 +106,7 @@ diccionario_datos.md
 opciones_respuesta_*.json
 
 # Archivos LIVO (base de datos local)
-LIVO/
+# LIVO/  # Habilitado para subir con Git LFS
 
 # Archivos de resultados de pruebas
 resultados_pruebas_*.xlsx
