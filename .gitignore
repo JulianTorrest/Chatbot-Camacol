@@ -1,0 +1,112 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+venv*/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Python scripts temporales
+*.pyc
+*.pyo
+
+# Historial de chats
+historial_chats/
+
+# RAG cache
+rag_cache/
+scraped_data/
+
+# RAG folder (descargado dinámicamente desde GitHub Releases)
+RAG/
+
+# Backup zip
+RAG_backup.zip
+
+# Resultados xlsx (archivos temporales de pruebas)
+resultados_*.xlsx
+goal_seek_resultados.xlsx
+resumen_capacidades_agente.xlsx
+telegram_interactions_log.xlsx
+
+.env
+.env.*
+
+# Archivos temporales de pruebas y debug
+analisis_*.py
+analizar_*.py
+aplanar_*.py
+calcular_*.py
+comparar_*.py
+consultas_*.txt
+debug_*.py
+ejecutar_*.py
+encontrar_*.py
+extraer_*.py
+fallos_*.txt
+generar_*.py
+generar_excel_*.py
+hojas_*.txt
+identificar_*.py
+investigar_*.py
+listar_*.py
+mapear_*.py
+obtener_*.py
+probar_*.py
+prueba_*.py
+relacion_*.xlsx
+reporte_*.py
+resultados_*.json
+resultados_*.txt
+test_*.py
+verificar_*.py
+verify_*.py
+
+# Archivos de análisis
+HALLAZGOS_*.md
+PLAN_*.md
+diccionario_datos.json
+diccionario_datos.md
+opciones_respuesta_*.json
+
+# Archivos LIVO (base de datos local)
+# LIVO/  # Temporalmente comentado para subir con Git LFS
+
+# Archivos de resultados de pruebas
+resultados_pruebas_*.xlsx
