@@ -40,7 +40,7 @@ class Colors:
 try:
     from livo_sql import LIVOSQLSystem
     from advanced_reasoning import analizar_y_responder # CORRECCIÓN FINAL: El nombre de la función es en español
-    LIVO_PATH = str(BASE_DIR / 'RAG' / '2025' / 'Coordenada Urbana' / 'LIVO_total_nov25_.xlsx')
+    LIVO_PATH = str(BASE_DIR / 'LIVO' / 'LIVO' / 'LIVO_total_abr26_.xlsx')
     livo_sql_system = LIVOSQLSystem(LIVO_PATH)
     exito_livo, mensaje_livo = livo_sql_system.inicializar()
     if not exito_livo:
