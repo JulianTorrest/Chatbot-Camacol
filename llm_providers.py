@@ -182,7 +182,7 @@ def llamar_ollama(prompt, config):
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=120)
+        response = requests.post(url, headers=headers, json=payload, timeout=(3.0, 120.0))
         
         if response.status_code == 200:
             data = response.json()

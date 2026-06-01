@@ -68,3 +68,45 @@ telegram_interactions_log.xlsx
 .env
 .env.*
 
+# Archivos temporales de pruebas y debug
+analisis_*.py
+analizar_*.py
+aplanar_*.py
+calcular_*.py
+comparar_*.py
+consultas_*.txt
+debug_*.py
+ejecutar_*.py
+encontrar_*.py
+extraer_*.py
+fallos_*.txt
+generar_*.py
+generar_excel_*.py
+hojas_*.txt
+identificar_*.py
+investigar_*.py
+listar_*.py
+mapear_*.py
+obtener_*.py
+probar_*.py
+prueba_*.py
+relacion_*.xlsx
+reporte_*.py
+resultados_*.json
+resultados_*.txt
+test_*.py
+verificar_*.py
+verify_*.py
+
+# Archivos de análisis
+HALLAZGOS_*.md
+PLAN_*.md
+diccionario_datos.json
+diccionario_datos.md
+opciones_respuesta_*.json
+
+# Archivos LIVO (base de datos local)
+LIVO/
+
+# Archivos de resultados de pruebas
+resultados_pruebas_*.xlsx

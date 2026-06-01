@@ -1389,7 +1389,7 @@ def es_consulta_livo(pregunta: str) -> bool:
         'unidades', 'proyectos', 'vis', 'vip', 'no vis',
         'constructora', 'área', 'valor', 'ranking', 'top', 'evolución',
         'comparar', 'cuántas', 'cuántos', 'total',
-        'saldo que inicia', 'oferta', 'ventas', 'renuncias', 'iniciaciones', 'desistimientos',
+        'saldo que inicia', 'saldos de vivienda', 'saldo inicial', 'oferta', 'ventas', 'renuncias', 'iniciaciones', 'desistimientos',
         'entregadas', 'lanzamientos', 'paralizado', 'culminadas', 'cuenta',
         'disponible', 'inventario', 'stock', 'comercializadas', 'negocios',
         'cancelaciones', 'inicios de obra', 'arranques', 'terminadas', 'finalizadas',
