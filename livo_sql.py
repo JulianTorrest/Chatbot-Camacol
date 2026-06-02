@@ -959,13 +959,16 @@ RECOMENDACIÓN CRÍTICA:
         # Detección de operación PRIMERO para evitar que "valor máximo" detecte "valor" como métrica
         op_funcion = "SUM"
         
-        if any(x in texto for x in ['ranking', 'top', 'principales']):
+        # Palabras clave de entidades para decidir si "mayor" es un cálculo de MAX o un RANKING/Top
+        entidades_agrupacion = ['constructora', 'constructoras', 'empresa', 'empresas', 'firma', 'firmas', 'proyecto', 'proyectos', 'departamento', 'departamentos', 'ciudad', 'ciudades', 'regional', 'regionales', 'estrato', 'estratos', 'tipo', 'tipos', 'segmento', 'segmentos', 'zona', 'zonas', 'sector', 'sectores', 'barrio', 'barrios']
+        
+        if any(re.search(r'\b' + re.escape(x) + r'\b', texto) if len(x) <= 3 else x in texto for x in ['ranking', 'top', 'principales', 'lideres', 'lider', 'posicion']) or (any(re.search(r'\b' + re.escape(x) + r'\b', texto) for x in ['mayor', 'mas', 'mejor', 'máximo', 'máxima', 'maximo', 'maxima']) and any(e in texto for e in entidades_agrupacion)):
             op_funcion = "RANKING"
         elif any(x in texto for x in ['agrupado por', 'agrupar por', 'agrupación por', 'agrupacion por', ' por ', ' segun ', ' según ', 'distribucion', 'distribución', ' cada ']):
             op_funcion = "GROUP_BY"
         elif any(x in texto for x in ['acumulado del año', 'acumulado anual', 'ytd', 'total año corrido']):
             op_funcion = "YTD"
-        elif any(x in texto for x in ['media movil', 'promedio movil', 'suavizado', 'moving average', 'ma']):
+        elif any(re.search(r'\b' + re.escape(x) + r'\b', texto) if len(x) <= 3 else x in texto for x in ['media movil', 'media móvil', 'promedio movil', 'promedio móvil', 'suavizado', 'moving average']) and not any(m in texto for m in ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre', 'ene-', 'feb-', 'mar-', 'abr-', 'may-', 'jun-', 'jul-', 'ago-', 'sep-', 'oct-', 'nov-', 'dic-']):
             op_funcion = "MOVING_AVG"
         elif any(x in texto for x in ['pronostico', 'proyeccion', 'prediccion', 'estimar', 'forecast', 'arima', 'arma', 'tendencia futura']):
             op_funcion = "FORECAST"
@@ -983,6 +986,8 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "BUCKET_SMLV"
         elif any(x in texto for x in ['promedio ponderado', 'promedio_ponderado']):
             op_funcion = "PROMEDIO_PONDERADO"
+        elif any(x in texto for x in ['crecimiento', 'variacion', 'variación', 'cambio', 'diferencia', 'frente a', 'comparado con']):
+            op_funcion = "VARIACION"
         elif any(x in texto for x in ['conteo de valores unicos', 'conteo de valores únicos', 'distinct_count']):
             op_funcion = "DISTINCT_COUNT"
         elif any(x in texto for x in ['moda', 'mode', 'más frecuente', 'valor mas frecuente', 'valor más frecuente', 'frecuente']):
@@ -993,7 +998,7 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "VAR_POP"
         elif any(x in texto for x in ['mediana', 'median']):
             op_funcion = "MEDIAN"
-        elif any(re.search(r'\b' + re.escape(x) + r'\b', texto) if len(x) <= 3 else x in texto for x in ['maximo', 'máximo', 'max', 'más alto', 'mayor']):
+        elif any(re.search(r'\b' + re.escape(x) + r'\b', texto) if len(x) <= 3 else x in texto for x in ['maximo', 'máximo', 'max', 'más alto']):
             op_funcion = "MAX"
         elif any(re.search(r'\b' + re.escape(x) + r'\b', texto) if len(x) <= 3 else x in texto for x in ['minimo', 'mínimo', 'min', 'más bajo', 'menor']):
             op_funcion = "MIN"
@@ -1003,8 +1008,6 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "AVG"
         elif any(x in temp_text_for_sum for x in ['totalidad', 'total', 'suma', 'sumatoria', 'numero', 'número', 'cantidad', 'resultado', 'valores', 'unidades']):
             op_funcion = "SUM"
-        elif any(x in texto for x in ['crecimiento', 'variacion', 'variación', 'cambio', 'diferencia', 'frente a', 'comparado con']):
-            op_funcion = "VARIACION"
         elif any(x in texto for x in ['clustering', 'cluster', 'clúster', 'similitud', 'agrupar proyectos']):
             op_funcion = "CLUSTERING"
         elif any(x in texto for x in ['clasificacion', 'clasificación', 'categorizar', 'perfilado']):
