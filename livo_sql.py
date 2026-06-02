@@ -1927,7 +1927,7 @@ RECOMENDACIÓN CRÍTICA:
             return sql
 
         # 10) Ventas totales (Definición estricta: Cuenta=Ventas + Región + Tiempo, sin filtros extra)
-        if "ventas totales" in texto and not any(x in texto for x in [' por ', ' cada ', ' segun ', ' según ', ' desglosado ', ' desglose ']):
+        if ("ventas totales" in texto or "se han vendido" in texto or "unidades vendidas" in texto) and not tiene_agrupacion and op_funcion not in ["RANKING", "GROUP_BY"]:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
