@@ -812,8 +812,8 @@ RECOMENDACIÓN CRÍTICA:
 
         Esta versión es sencilla pero suficiente para la validación automática:
         - Si no hay filas: indica que no se encontraron resultados.
-        - Si hay una sola celda numérica: devuelve directamente ese valor en texto.
-        - En otros casos: construye una tabla básica texto con encabezados.
+        - Si hay una sola celda numérica: devuelve directamente ese valor en texto con aclaraciones de escala monetaria.
+        - En otros casos: construye una tabla básica texto con encabezados y notas de escala si aplica.
         """
         # Sin filas
         if not result:
@@ -821,14 +821,35 @@ RECOMENDACIÓN CRÍTICA:
 
         # Una fila, una o dos columnas (caso típico de SUM o AVG, o comparación anual)
         if len(result) == 1 and len(columns) in [1, 2]:
-            valor = result[0][0]
             # Formatear la respuesta de una o dos columnas
             respuesta_formateada = []
             for i, col_name in enumerate(columns):
                 valor_celda = result[0][i]
                 nombre_columna_limpio = col_name.replace('_', ' ')
+                
+                # Identificar si es una columna de tipo valor/precio monetario general o por m2
+                is_m2_monetary = ("m2" in col_name.lower() or "mc" in col_name.lower()) and ("precio" in col_name.lower() or "valor" in col_name.lower() or "costo" in col_name.lower())
+                is_monetary = ("valor" in col_name.lower() or "precio" in col_name.lower() or "costo" in col_name.lower()) and not is_m2_monetary
+                
                 if isinstance(valor_celda, (int, float)):
-                    respuesta_formateada.append(f"**{nombre_columna_limpio}:** {valor_celda:,.0f}")
+                    if is_m2_monetary:
+                        pesos_enteros = valor_celda * 1000
+                        millones_pesos = valor_celda / 1000.0
+                        respuesta_formateada.append(
+                            f"**{nombre_columna_limpio}:** {valor_celda:,.2f} miles de pesos por m²\n"
+                            f"  - Equivalente a: **${pesos_enteros:,.0f} COP por m²**\n"
+                            f"  - Expresado en millones: **${millones_pesos:,.2f} millones de pesos por m²**"
+                        )
+                    elif is_monetary:
+                        pesos_enteros = valor_celda * 1000
+                        millones_pesos = valor_celda / 1000.0
+                        respuesta_formateada.append(
+                            f"**{nombre_columna_limpio}:** {valor_celda:,.2f} miles de pesos\n"
+                            f"  - Equivalente a: **${pesos_enteros:,.0f} COP**\n"
+                            f"  - Expresado en millones: **${millones_pesos:,.2f} millones de pesos**"
+                        )
+                    else:
+                        respuesta_formateada.append(f"**{nombre_columna_limpio}:** {valor_celda:,.0f}")
                 else:
                     respuesta_formateada.append(f"**{nombre_columna_limpio}:** {valor_celda}")
             return "\n".join(respuesta_formateada)
@@ -844,6 +865,30 @@ RECOMENDACIÓN CRÍTICA:
         # Filas
         for fila in result:
             lineas.append(" | ".join(str(v) for v in fila))
+
+        # Agregar aclaración de escala al final si hay columnas de valor o m2
+        tiene_monetario = False
+        tiene_m2_monetario = False
+        for col_name in columns:
+            is_m2 = ("m2" in col_name.lower() or "mc" in col_name.lower()) and ("precio" in col_name.lower() or "valor" in col_name.lower() or "costo" in col_name.lower())
+            is_gen = ("valor" in col_name.lower() or "precio" in col_name.lower() or "costo" in col_name.lower()) and not is_m2
+            if is_m2:
+                tiene_m2_monetario = True
+            if is_gen:
+                tiene_monetario = True
+        
+        if tiene_monetario or tiene_m2_monetario:
+            lineas.append("\n💡 **Nota sobre escala monetaria (en miles de pesos):**")
+            
+            if tiene_monetario:
+                lineas.append("- **Campos de valor general** (ej: valor total, suma valor):")
+                lineas.append("  - Multiplicar por 1,000 para pesos enteros (ej: `776,700` miles = `$776,700,000 COP`).")
+                lineas.append("  - Dividir por 1,000 para millones de pesos (ej: `776,700` miles = `$776.70` millones de pesos).")
+            
+            if tiene_m2_monetario:
+                lineas.append("- **Campos de precio por metro cuadrado (m²)** (ej: precio_mc_promedio):")
+                lineas.append("  - Multiplicar por 1,000 para pesos enteros por m² (ej: `4,500` miles = `$4,500,000 COP por m²`).")
+                lineas.append("  - Dividir por 1,000 para millones de pesos por m² (ej: `4,500` miles = `$4.50` millones de pesos por m²).")
 
         return "\n".join(lineas)
 
@@ -2243,7 +2288,7 @@ RECOMENDACIÓN CRÍTICA:
                     MAX(fecha) AS fecha_max
                 FROM livo
                 WHERE cuenta = 'Oferta'
-                  AND LEFT(fecha, 4) = ?
+                  AND LEFT(CAST(fecha AS VARCHAR), 4) = ?
             """
             fecha_max = self.conn.execute(query, [str(anio)]).fetchone()[0]
 
@@ -2285,7 +2330,7 @@ WITH ultimo_periodo AS (
   SELECT MAX(fecha) AS fecha_max
   FROM livo
   WHERE cuenta = 'Oferta'
-    AND LEFT(fecha, 4) = '{anio_str}'
+    AND LEFT(CAST(fecha AS VARCHAR), 4) = '{anio_str}'
 ),
 oferta_filtrada AS (
   SELECT *
@@ -2323,7 +2368,7 @@ FROM oferta_filtrada
 🔹 ÚLTIMO AÑO:
    - Definición: Toda la información del año actual (año calendario completo)
    - Ejemplo: Si estamos en 2025, último año = todo el año 2025 (enero a diciembre)
-   - Uso: WHERE LEFT(fecha, 4) = '2025' para obtener todo el año 2025
+   - Uso: WHERE LEFT(CAST(fecha AS VARCHAR), 4) = '2025' para obtener todo el año 2025
    - Diferencia: No es lo mismo que año corrido
 
 🔹 DOCE_MESES:
@@ -2336,8 +2381,8 @@ FROM oferta_filtrada
    - Formato numérico: 20251031
    - Para extraer año: CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER)
    - Para extraer mes: CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER)
-   - Para filtrar por año: WHERE LEFT(fecha, 4) = '2024'
-   - Para filtrar por mes: WHERE SUBSTRING(fecha, 5, 2) = '10'
+   - Para filtrar por año: WHERE LEFT(CAST(fecha AS VARCHAR), 4) = '2024'
+   - Para filtrar por mes: WHERE SUBSTRING(CAST(fecha AS VARCHAR), 5, 2) = '10'
 
 🔹 ÚLTIMOS N MESES:
    - Proceso: 1) Identificar mes más reciente con MAX(fecha)
@@ -2347,7 +2392,7 @@ FROM oferta_filtrada
      * Septiembre 2025 (202509xx) 
      * Agosto 2025 (202508xx)
      * Julio 2025 (202507xx)
-   - SQL: WHERE LEFT(fecha, 6) IN ('202510', '202509', '202508', '202507')
+   - SQL: WHERE LEFT(CAST(fecha AS VARCHAR), 6) IN ('202510', '202509', '202508', '202507')
 
 🔹 OFERTA (cuenta = 'Oferta') - REGLA CRÍTICA:
    - Las ofertas NO se suman entre meses.
@@ -2358,7 +2403,7 @@ FROM oferta_filtrada
      {ejemplo_oferta_2025}
    - SQL típico para elegir el último período de oferta de un año:
      SELECT MAX(fecha) FROM livo
-     WHERE cuenta = 'Oferta' AND LEFT(fecha, 4) = '2025';
+     WHERE cuenta = 'Oferta' AND LEFT(CAST(fecha AS VARCHAR), 4) = '2025';
      -- Luego filtrar SOLO por ese código de fecha en la consulta principal.
 
 ═══ EJEMPLOS DE CONSULTAS TEMPORALES CORRECTAS ═══
@@ -2368,13 +2413,13 @@ FROM oferta_filtrada
 
 ✅ CORRECTO:
    WHERE año_corrido = 1                    -- Para año corrido (oct 2024 - oct 2025)
-   WHERE LEFT(fecha, 4) = '2025'           -- Para último año (todo 2025)
+   WHERE LEFT(CAST(fecha AS VARCHAR), 4) = '2025'           -- Para último año (todo 2025)
    WHERE doce_meses = (SELECT MAX(doce_meses) FROM livo) -- Para últimos 12 meses móviles
-   WHERE LEFT(fecha, 6) IN ('202510', '202509', '202508', '202507')  -- Últimos 4 meses
+   WHERE LEFT(CAST(fecha AS VARCHAR), 6) IN ('202510', '202509', '202508', '202507')  -- Últimos 4 meses
 
 ═══ DETECCIÓN AUTOMÁTICA DE PERÍODOS ═══
 - "año corrido" → Usar año_corrido = 1 (período de 12 meses desde mismo mes año anterior)
-- "último año" → Usar LEFT(fecha, 4) = '2025' (año calendario completo actual)
+- "último año" → Usar LEFT(CAST(fecha AS VARCHAR), 4) = '2025' (año calendario completo actual)
 - "últimos 12 meses" → Usar doce_meses = 1 (12 meses móviles)
 - "últimos N meses" → Calcular desde MAX(fecha) hacia atrás N meses
 - "2024", "2025" → Extraer año específico de fecha
