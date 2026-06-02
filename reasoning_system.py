@@ -96,7 +96,7 @@ class ReasoningSystem:
                     # Oferta
                     'oferta', 'disponible', 'disponibles', 'inventario'
                 ],
-                'description': 'tipo de cuenta o estado (CRÍTICO)',
+                'description': 'tipo de cuenta (ventas, oferta, etc.)',
                 'priority': 'critical'  # Nuevo campo de prioridad
             },
             'location': {
@@ -107,7 +107,7 @@ class ReasoningSystem:
                     'nacional', 'colombia', 'país', 'todo el país' # MEJORA: Añadir términos nacionales
                 ],
                 'description': 'ubicación geográfica',
-                'priority': 'high'
+                'priority': 'low'
             },
             'metric': {
                 'keywords': [
@@ -147,15 +147,10 @@ class ReasoningSystem:
                     'cantidad', 'conteo', 'cuántos', 'cuántas', 'crecimiento', 'variacion',
                     'pronostico', 'forecast', 'arima', 'arma',
                     'clustering', 'clasificacion', 'asociacion',
-                    'cuál', 'dime', 'muestra', 'lista', 'ranking', 'top'
+                    'cuál', 'dime', 'muestra', 'lista', 'ranking', 'top', 'constructora', 'empresa', 'firma'
                 ],
                 'description': 'operación a realizar',
                 'priority': 'medium'
-            },
-            'company_identifier': {
-                'keywords': ['nit', 'identificación', 'código empresa', 'registro', 'cédula jurídica'],
-                'description': 'identificador único de constructora (NIT)',
-                'priority': 'high'
             }
         }
         
@@ -465,12 +460,6 @@ class ReasoningSystem:
         present_elements = [key for key, value in self.conversation_state.items() if value is not None]
         missing_elements = self._detect_missing_elements(present_elements)
 
-        # --- MEJORA: Considerar "nacional" como una ubicación válida explícitamente ---
-        # Si se menciona "nacional" o similar, y 'location' es el único elemento faltante,
-        # se considera una pregunta completa.
-        if 'location' in missing_elements and len(missing_elements) == 1 and any(term in question_normalized for term in ['nacional', 'colombia', 'pais', 'todo el pais']):
-            missing_elements.remove('location')
-        
         # Determinar tipo de pregunta
         question_type = self._classify_question_type(question_normalized, present_elements, missing_elements)
         
@@ -539,17 +528,22 @@ class ReasoningSystem:
         if 'account_type' in missing_elements:
             return QuestionType.NEEDS_CLARIFICATION
         
-        # Si faltan más de 3 elementos esenciales
-        if len(missing_elements) > 3:
+        # --- MEJORA: Asumir nivel nacional si no se especifica ubicación ---
+        # No consideramos 'location' como un elemento faltante bloqueante.
+        essential_missing = [e for e in missing_elements if e != 'location']
+        
+        # Si faltan más de 3 elementos esenciales (sin contar ubicación)
+        if len(essential_missing) > 3:
             return QuestionType.INCOMPLETE
         
         # Si faltan 2-3 elementos importantes
-        if len(missing_elements) >= 2:
+        if len(essential_missing) >= 2:
             return QuestionType.NEEDS_CLARIFICATION
         
-        # Si falta solo 1 elemento pero es crítico
-        critical_elements = ['metric', 'operation', 'location']
-        if any(elem in missing_elements for elem in critical_elements):
+        # Si falta solo 1 elemento pero es crítico (métrica u operación)
+        # La ubicación ya no se considera crítica para bloquear la pregunta.
+        critical_elements = ['metric', 'operation']
+        if any(elem in essential_missing for elem in critical_elements):
             return QuestionType.AMBIGUOUS
         
         return QuestionType.COMPLETE
