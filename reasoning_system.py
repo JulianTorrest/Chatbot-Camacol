@@ -112,6 +112,7 @@ class ReasoningSystem:
             'metric': {
                 'keywords': [
                     'unidades', 'cantidad', 'número de',
+                    'meses', 'diferencia de meses', 'cuantos meses',
                     'valor', 'precio', 'monto', 'ingresos', 'facturación',
                     'área', 'metros', 'm2', 'superficie',
                     'total', 'suma', 'sumatoria',
@@ -125,7 +126,7 @@ class ReasoningSystem:
                     'año', 'mes', 'trimestre', 'semestre', 'periodo', 'fecha', 'cuándo',
                     '2025', '2024', '2023',
                     'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-                    'reciente', 'último', 'actual'
+                    'reciente', 'último', 'actual', 'doce', '12', 'seis', '6', 'diez', '10', 'cinco', '5', 'tres', '3', 'dieciocho', '18', 'veinticuatro', '24', 'entre', 'hasta', 'desde'
                 ],
                 'description': 'período temporal',
                 'priority': 'medium'
@@ -143,7 +144,9 @@ class ReasoningSystem:
                 'keywords': [
                     'suma', 'total', 'sumatoria',
                     'promedio', 'media',
-                    'cantidad', 'conteo', 'cuántos', 'cuántas',
+                    'cantidad', 'conteo', 'cuántos', 'cuántas', 'crecimiento', 'variacion',
+                    'pronostico', 'forecast', 'arima', 'arma',
+                    'clustering', 'clasificacion', 'asociacion',
                     'cuál', 'dime', 'muestra', 'lista', 'ranking', 'top'
                 ],
                 'description': 'operación a realizar',
