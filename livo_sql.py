@@ -1246,10 +1246,13 @@ RECOMENDACIÓN CRÍTICA:
         # Fórmula según especificación: (Suma de valor / 1000) / Suma de unidades = millones de pesos
         # Donde Suma de valor está expresado en miles
         # Tamaño promedio: Suma de área / Suma de unidades = m²
-        # Detecta: precio promedio, costo promedio, valor promedio, precio medio, costo medio, valor medio
-        if (("precio promedio" in texto or "precio medio" in texto or 
-             "costo promedio" in texto or "costo medio" in texto or
-             "valor promedio" in texto or "valor medio" in texto) and "vivienda" in texto):
+        # Detecta: precio promedio, costo promedio, valor promedio, precio medio, costo medio, valor medio, tamaño promedio, área promedio, etc.
+        if ("precio promedio" in texto or "precio medio" in texto or 
+            "costo promedio" in texto or "costo medio" in texto or
+            "valor promedio" in texto or "valor medio" in texto or
+            "tamaño promedio" in texto or "tamano promedio" in texto or
+            "área promedio" in texto or "area promedio" in texto or
+            "superficie promedio" in texto or "m2 promedio" in texto):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
