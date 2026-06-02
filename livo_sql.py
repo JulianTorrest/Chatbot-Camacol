@@ -822,8 +822,8 @@ RECOMENDACIÓN CRÍTICA:
         # Verificar si todos los valores de la fila única son None (ej: SUM o AVG sobre consultas sin filas coincidentes)
         if len(result) == 1 and all(v is None or str(v).strip().lower() in ['none', 'null', 'nan'] for v in result[0]):
             return (
-                "⚠️ **Sin registros disponibles:** No se encontraron transacciones en la base de datos para esta combinación de filtros (región, mes y cuenta de obra).\n\n"
-                "💡 **Nota metodológica:** Es muy común que para ciertos departamentos con menor volumen de actividad edificadora "
+                "**Sin registros disponibles:** No se encontraron transacciones en la base de datos para esta combinación de filtros (región, mes y cuenta de obra).\n\n"
+                "**Nota metodológica:** Es muy común que para ciertos departamentos con menor volumen de actividad edificadora "
                 "(como el Meta, Boyacá, Sucre, Córdoba, etc.) en un mes específico (ej: abril 2026), no se hayan registrado movimientos "
                 "de una cuenta de obra en particular (como **Lanzamientos** o **Iniciaciones**). Intenta consultar con un acumulado "
                 "más amplio (ej: *'en los últimos 12 meses'*) o en un departamento de mayor volumen."
@@ -845,7 +845,7 @@ RECOMENDACIÓN CRÍTICA:
                     if is_monetary or is_m2_monetary:
                         respuesta_formateada.append(
                             f"**{nombre_columna_limpio}:** No se registran montos económicos (el valor es nulo o no existen registros para esta combinación de filtros).\n\n"
-                            f"💡 **Nota metodológica:** Algunas cuentas como **Entregadas**, **Culminadas** o **Iniciaciones** "
+                            f"**Nota metodológica:** Algunas cuentas como **Entregadas**, **Culminadas** o **Iniciaciones** "
                             f"registran principalmente volúmenes físicos de viviendas (**unidades**). Te sugerimos consultar por el **número de unidades** para esta misma selección (ej: *'Calcula la cantidad de unidades para Entregadas en Risaralda...'*)."
                         )
                     else:
@@ -2184,9 +2184,9 @@ RECOMENDACIÓN CRÍTICA:
             contexto_livo.extend(avanzado)
             
             if contexto_livo:
-                respuesta += "\n\n📝 **Contexto LIVO:**\n" + "\n".join(contexto_livo)
+                respuesta += "\n\n**Contexto LIVO:**\n" + "\n".join(contexto_livo)
             
-            respuesta += f"\n\n🛠️ **Query:** `{sql}`"
+            respuesta += f"\n\n**Query:** `{sql}`"
             return respuesta
         except Exception as e:
             return f"Error al ejecutar SQL sin LLM: {e}"
@@ -2570,10 +2570,10 @@ Fórmula: **Oferta Final = Oferta Inicial + Lanzamientos - Ventas**
 --- REGLA 3: EL CICLO DE VIDA (LIVO) ---
 El flujo de la actividad edificadora sigue estas etapas secuenciales:
 
-1. 🚀 **LANZAMIENTO (Preventa):** Salida al mercado sobre planos. Aumenta la oferta.
-2. 💰 **VENTA (Cierre de Negocio):** Cierre de promesas de compraventa. Reduce la oferta.
-3. 🏗️ **INICIACIÓN (Inicio de Obra):** Comienzo de la construcción física. Es un INDICADOR REZAGADO. Las iniciaciones de hoy reflejan las ventas de hace 6 a 12 meses. No afecta directamente la oferta comercial disponible (se puede vender algo no iniciado).
-4. 🏢 **OFERTA (Inventario):** Unidades remanentes que no se han vendido. Es el resultado final del ciclo.
+1. **LANZAMIENTO (Preventa):** Salida al mercado sobre planos. Aumenta la oferta.
+2. **VENTA (Cierre de Negocio):** Cierre de promesas de compraventa. Reduce la oferta.
+3. **INICIACIÓN (Inicio de Obra):** Comienzo de la construcción física. Es un INDICADOR REZAGADO. Las iniciaciones de hoy reflejan las ventas de hace 6 a 12 meses. No afecta directamente la oferta comercial disponible (se puede vender algo no iniciado).
+4. **OFERTA (Inventario):** Unidades remanentes que no se han vendido. Es el resultado final del ciclo.
 """
 
     def _generar_schema_inteligente(self) -> str:
@@ -2785,16 +2785,16 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         
         # Clasificar si la pregunta es sobre LIVO o no (si no, responder con LLM directamente)
         if not self.es_pregunta_livo(pregunta):
-            print(f"🔮 Consulta no clasificada como LIVO. Usando fallback...")
+            print(f" Consulta no clasificada como LIVO. Usando fallback...")
             return False, "Consulta no clasificada como LIVO. Usando fallback...", None
 
         # MEJORA 2: Detección de ambigüedades
         tiene_ambiguedades, ambiguedades = self.detectar_ambiguedades(pregunta)
         if tiene_ambiguedades:
-            mensaje_ambiguedad = "⚠️ **Tu pregunta podría ser más específica:**\n\n"
+            mensaje_ambiguedad = " **Tu pregunta podría ser más específica:**\n\n"
             for amb in ambiguedades:
                 mensaje_ambiguedad += f"- {amb}\n"
-            mensaje_ambiguedad += "\n🔄 **Intentaré responder con los datos disponibles...**\n\n"
+            mensaje_ambiguedad += "\n **Intentaré responder con los datos disponibles...**\n\n"
             # No retornar, solo advertir
             print(mensaje_ambiguedad)
         
@@ -2807,7 +2807,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         # Esto ahorra tokens y es más rápido para preguntas estándar
         sql_reglas = self._generar_sql_sin_llm(pregunta)
         if sql_reglas:
-            print(f"⚡ Usando SQL generado por reglas (sin LLM): {sql_reglas}")
+            print(f"Usando SQL generado por reglas (sin LLM): {sql_reglas}")
             try:
                 result = self.conn.execute(sql_reglas).fetchall()
                 columns = [desc[0] for desc in self.conn.description]
@@ -2818,7 +2818,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
                 # Verificar si se usó filtro geográfico en el SQL generado por reglas
                 # Si no hay filtro de departamento/regional, asumimos nacional y agregamos el tip
                 if "departamento" not in sql_reglas.lower() and "regional" not in sql_reglas.lower():
-                    respuesta += "\n\n💡 *Tip:* También puedo darte este dato por departamento o ciudad (ej: 'en Antioquia' o 'en Bogotá')."
+                    respuesta += "\n\n*Tip:* También puedo darte este dato por departamento o ciudad (ej: 'en Antioquia' o 'en Bogotá')."
                 
                 # Agregar badge
                 # Determinar si es contexto de vivienda (Coyuntura) o general (LIVO)
@@ -2830,10 +2830,10 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
                     es_coyuntura_vivienda = False
 
                 if es_coyuntura_vivienda:
-                    respuesta = f"⚡ **Respuesta rápida (Estimación LIVO)**\n\n{respuesta}\n\n🔍 *Fuente: Base de datos LIVO (Simulando reglas de Coyuntura)*"
+                    respuesta = f"**Respuesta rápida (Estimación LIVO)**\n\n{respuesta}\n\n*Fuente: Base de datos LIVO (Simulando reglas de Coyuntura)*"
                 else:
-                    respuesta = f"⚡ **Respuesta rápida (LIVO)**\n\n{respuesta}\n\n🔍 *Fuente: Base de datos LIVO (Cálculo directo)*"
-                respuesta += f"\n\n🛠️ **Query:** `{sql_reglas}`"
+                    respuesta = f"**Respuesta rápida (LIVO)**\n\n{respuesta}\n\n*Fuente: Base de datos LIVO (Cálculo directo)*"
+                respuesta += f"\n\n**Query:** `{sql_reglas}`"
                 
                 # Generar gráfico si se solicita
                 chart_data = None
@@ -2859,17 +2859,17 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
                 respuesta = self._formatear_resultados(result, columns, sql_cacheado)
                 
                 # Agregar badge de caché
-                respuesta = f"⚡ **Resultado cacheado (ultra rápido)**\n\n{respuesta}\n\n🔍 *Fuente: Base de datos LIVO (Caché)*"
-                respuesta += f"\n\n🛠️ **Query:** `{sql_cacheado}`"
+                respuesta = f"**Resultado cacheado (ultra rápido)**\n\n{respuesta}\n\n*Fuente: Base de datos LIVO (Caché)*"
+                respuesta += f"\n\n**Query:** `{sql_cacheado}`"
                 
                 # MEJORA 4: Explicación del SQL
                 explicacion = self.explicar_sql(sql_cacheado, llm_function)
-                respuesta += f"\n\n💡 **Qué hice:** {explicacion}"
+                respuesta += f"\n\n**Qué hice:** {explicacion}"
                 
                 # MEJORA 5: Sugerencias de preguntas relacionadas
                 sugerencias = self.generar_preguntas_relacionadas(pregunta, respuesta, llm_function)
                 if sugerencias:
-                    respuesta += "\n\n💭 **Preguntas relacionadas que podrías hacer:**\n"
+                    respuesta += "\n\n**Preguntas relacionadas que podrías hacer:**\n"
                     for i, sug in enumerate(sugerencias, 1):
                         respuesta += f"{i}. {sug}\n"
                 
@@ -3567,7 +3567,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
         
         # --- MEJORA: Manejar el caso en que todos los LLM fallen ---
         if not respuesta_llm:
-            return False, "❌ No se pudo generar la consulta SQL porque todos los proveedores de IA fallaron. Por favor, revisa los límites de tu API.", None
+            return False, " No se pudo generar la consulta SQL porque todos los proveedores de IA fallaron. Por favor, revisa los límites de tu API.", None
             
         sql = respuesta_llm.strip().replace('```sql', '').replace('```', '').strip()
         
@@ -3576,12 +3576,12 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
         
         if ';' in sql:
             sql = sql.split(';')[0].strip()
-            print(f"⚠️ Múltiples sentencias detectadas, usando solo la primera")
+            print(f" Múltiples sentencias detectadas, usando solo la primera")
         
         if len(sql) > 500:
-            print(f"⚠️ SQL muy largo ({len(sql)} chars), verificando...")
+            print(f" SQL muy largo ({len(sql)} chars), verificando...")
         
-        print(f"\n📊 SQL: {sql}\n")
+        print(f"\n SQL: {sql}\n")
         
         try:
             result = self.conn.execute(sql).fetchall()
@@ -3794,7 +3794,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
                 if res_nac and res_nac[0] and res_nac[0] > 0:
                     total_nacional = res_nac[0]
                     share = (valor_actual / total_nacional) * 100
-                    return f"🌍 **Market Share:** Representa el **{share:.1f}%** del total nacional ({total_nacional:,.0f})."
+                    return f" **Market Share:** Representa el **{share:.1f}%** del total nacional ({total_nacional:,.0f})."
             except:
                 pass
         return None
@@ -3863,7 +3863,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
                 if res_prev and res_prev[0] and res_prev[0] > 0:
                     valor_prev = res_prev[0]
                     var = ((valor_actual - valor_prev) / valor_prev) * 100
-                    return f"🚀 **Momentum:** Variación de **{var:+.1f}%** frente al mes inmediatamente anterior."
+                    return f" **Momentum:** Variación de **{var:+.1f}%** frente al mes inmediatamente anterior."
             except:
                 pass
         return None
@@ -3900,7 +3900,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             res = self.conn.execute(sql_prom).fetchone()
             if res and res[0]:
                 promedio_3m = res[0]
-                return f"🔮 **Proyección:** Basado en el promedio de los últimos 3 meses ({promedio_3m:,.0f}), se proyecta que el próximo mes podría rondar esa cifra."
+                return f" **Proyección:** Basado en el promedio de los últimos 3 meses ({promedio_3m:,.0f}), se proyecta que el próximo mes podría rondar esa cifra."
         except:
             pass
         return None
@@ -3934,7 +3934,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
                     valor_par = res[0]
                     diff_pct = ((valor_actual - valor_par) / valor_par) * 100
                     estado = "por encima" if diff_pct > 0 else "por debajo"
-                    return f"🤼 **Benchmarking:** {ciudad_detectada.title()} está un **{abs(diff_pct):.1f}% {estado}** de su par {par_detectado.title()} ({valor_par:,.0f})."
+                    return f" **Benchmarking:** {ciudad_detectada.title()} está un **{abs(diff_pct):.1f}% {estado}** de su par {par_detectado.title()} ({valor_par:,.0f})."
             except:
                 pass
         return None
@@ -3949,7 +3949,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
                 if res and res[0] and res[0] > 0:
                     lanzamientos = res[0]
                     absorcion = (valor_actual / lanzamientos) * 100
-                    return f"🧽 **Absorción:** Las ventas representan el **{absorcion:.1f}%** de los lanzamientos del periodo."
+                    return f" **Absorción:** Las ventas representan el **{absorcion:.1f}%** de los lanzamientos del periodo."
             
             elif "cuenta = 'Lanzamientos'" in sql:
                 # Obtener Ventas
@@ -3958,7 +3958,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
                 if res and res[0]:
                     ventas = res[0]
                     absorcion = (ventas / valor_actual) * 100
-                    return f"🧽 **Absorción:** Se ha vendido el **{absorcion:.1f}%** de lo lanzado en este periodo."
+                    return f" **Absorción:** Se ha vendido el **{absorcion:.1f}%** de lo lanzado en este periodo."
         except:
             pass
         return None
@@ -3989,7 +3989,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             if res and res[0]:
                 hhi = res[0]
                 nivel = "Baja" if hhi < 1500 else "Moderada" if hhi < 2500 else "Alta"
-                return f"🏗️ **Concentración de Mercado:** {nivel} (HHI: {hhi:.0f}). Un HHI mayor a 2500 indica alta concentración."
+                return f" **Concentración de Mercado:** {nivel} (HHI: {hhi:.0f}). Un HHI mayor a 2500 indica alta concentración."
         except:
             pass
         return None
@@ -4044,7 +4044,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             if match:
                 meses = float(match.group(1))
                 if meses < 6:
-                    return f"🚨 **Alerta de Agotamiento:** Inventario crítico. Al ritmo actual, la oferta se agotaría en solo {meses} meses (Stockout)."
+                    return f" **Alerta de Agotamiento:** Inventario crítico. Al ritmo actual, la oferta se agotaría en solo {meses} meses (Stockout)."
         return None
 
     def _calcular_distribucion_fina_smmlv(self, sql: str, valor_actual: float) -> Optional[str]:
@@ -4109,9 +4109,9 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             promedio_mes = promedios.get(mes_consultado, 0)
             
             if promedio_mes > promedio_general * 1.1:
-                return f"📅 **Estacionalidad:** Históricamente, el mes {mes_consultado} es de **alta actividad** para {cuenta} (superior al promedio anual)."
+                return f" **Estacionalidad:** Históricamente, el mes {mes_consultado} es de **alta actividad** para {cuenta} (superior al promedio anual)."
             elif promedio_mes < promedio_general * 0.9:
-                return f"📅 **Estacionalidad:** Históricamente, el mes {mes_consultado} es de **baja actividad** para {cuenta}."
+                return f" **Estacionalidad:** Históricamente, el mes {mes_consultado} es de **baja actividad** para {cuenta}."
         except:
             pass
         return None
@@ -4132,7 +4132,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
         for row in result:
             for val in row:
                 if isinstance(val, (int, float)) and val < 0:
-                    return "🛡️ **Auditoría de Datos:** ⚠️ Se detectaron valores negativos en el resultado, lo cual puede indicar ajustes contables o reversiones masivas en la fuente."
+                    return " **Auditoría de Datos:**  Se detectaron valores negativos en el resultado, lo cual puede indicar ajustes contables o reversiones masivas en la fuente."
         return None
 
     def _simular_escenario_automatico(self, sql: str, valor_actual: float) -> Optional[str]:
@@ -4140,14 +4140,14 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
         if "cuenta = 'Ventas'" in sql:
             escenario_bajo = valor_actual * 0.9
             escenario_alto = valor_actual * 1.1
-            return f"🔮 **Simulación What-If:** Si la demanda varía un +/- 10%, las ventas se ubicarían entre {escenario_bajo:,.0f} y {escenario_alto:,.0f} unidades."
+            return f" **Simulación What-If:** Si la demanda varía un +/- 10%, las ventas se ubicarían entre {escenario_bajo:,.0f} y {escenario_alto:,.0f} unidades."
         
         if "cuenta = 'Oferta'" in sql:
             # Simular absorción simple
             meses_simulados = 12
             ventas_estimadas = valor_actual * 0.05 * meses_simulados # Asumiendo 5% ventas mensuales
             saldo_final = valor_actual - ventas_estimadas
-            return f"🔮 **Simulación What-If:** Con una velocidad de ventas promedio del 5% mensual, el stock se reduciría a {saldo_final:,.0f} unidades en 12 meses (ceteris paribus)."
+            return f" **Simulación What-If:** Con una velocidad de ventas promedio del 5% mensual, el stock se reduciría a {saldo_final:,.0f} unidades en 12 meses (ceteris paribus)."
             
         return None
 
@@ -4451,7 +4451,7 @@ Preguntas sugeridas:"""
             
             return True
         except Exception as e:
-            print(f"⚠️ Error exportando a Excel: {e}")
+            print(f" Error exportando a Excel: {e}")
             return False
     
     def obtener_historial(self, usuario: str = "default", limite: int = 10) -> List[Dict[str, Any]]:
@@ -4635,13 +4635,13 @@ Preguntas sugeridas:"""
             if isinstance(error, str) and "rate_limit_exceeded" in error:
                 for backup in ollama_backups:
                     backup_name = backup.get("name", "Ollama")
-                    print(f"🔁 Intentando fallback con proveedor local: {backup_name}")
+                    print(f" Intentando fallback con proveedor local: {backup_name}")
                     resp_backup, err_backup = llamar_api_ia(prompt_text, backup)
                     if resp_backup and not err_backup:
-                        print(f"✅ Fallback exitoso con {backup_name}")
+                        print(f" Fallback exitoso con {backup_name}")
                         return resp_backup
                     else:
-                        print(f"⚠️ Fallback con {backup_name} falló: {err_backup}")
+                        print(f" Fallback con {backup_name} falló: {err_backup}")
 
             # 3) Si llegamos aquí, no hubo éxito con ningún proveedor
             return None
@@ -4811,10 +4811,10 @@ IMPORTANTE:
                         else:
                             print(f"[DEBUG] Saltando proveedor deshabilitado: {provider_name}")
                     
-                    print("⚠️ No hay proveedores LLM disponibles")
+                    print(" No hay proveedores LLM disponibles")
                     return None, "No hay proveedores LLM disponibles"
                 except Exception as e:
-                    print(f"⚠️ Error con LLM: {e}")
+                    print(f" Error con LLM: {e}")
                     import traceback
                     traceback.print_exc()
                     return None, f"Error con LLM: {e}"
@@ -4826,15 +4826,15 @@ IMPORTANTE:
             if isinstance(resultado, tuple) and len(resultado) == 3:
                 exito, respuesta, sql_usado = resultado
                 if exito:
-                    print("✅ Respuesta:", respuesta)
+                    print(" Respuesta:", respuesta)
                     if sql_usado:
-                        print("📝 SQL usado:", sql_usado)
+                        print(" SQL usado:", sql_usado)
                 else:
-                    print("❌ Error:", respuesta)
+                    print(" Error:", respuesta)
             else:
-                print(f"❌ Resultado inesperado del sistema LIVO: {resultado}")
+                print(f" Resultado inesperado del sistema LIVO: {resultado}")
         except Exception as e:
-            print(f"❌ Error inesperado: {e}")
+            print(f" Error inesperado: {e}")
     
     # system.cerrar()  # Método no existe
     print("👋 ¡Hasta luego!")
