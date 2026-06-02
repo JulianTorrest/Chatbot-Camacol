@@ -1719,33 +1719,6 @@ if st.session_state.tema == "Oscuro":
 
 st.markdown("---")
 
-# Preguntas sugeridas
-st.markdown("### 💡 Preguntas sugeridas")
-col1, col2 = st.columns(2)
-
-sugestiones = [
-    "¿Qué es CAMACOL?",
-    "¿Cuáles son los servicios de CAMACOL?",
-    "Información sobre el sector constructor",
-    "¿Cómo puedo afiliarme?",
-    "Eventos próximos de CAMACOL",
-    "Estadísticas del sector"
-]
-
-with col1:
-    for i in range(0, len(sugestiones), 2):
-        if st.button(sugestiones[i], key=f"sug{i}", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": sugestiones[i]})
-            st.rerun()
-
-with col2:
-    for i in range(1, len(sugestiones), 2):
-        if st.button(sugestiones[i], key=f"sug{i}", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": sugestiones[i]})
-            st.rerun()
-
-st.markdown("---")
-
 # Sección de Información y Tablas
 # Sección de Información y Tablas
 with st.expander("📊 Información del Sistema", expanded=False):
