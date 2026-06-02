@@ -1292,9 +1292,9 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
-            # Intentar detectar número (top 5, top 10)
+            # Intentar detectar número de forma flexible (top 10, ranking de las 10, las 10 mejores, etc.)
             limit = 5
-            match_num = re.search(r"top\s+(\d+)", texto)
+            match_num = re.search(r"\b(\d{1,2})\b", texto)
             if match_num:
                 limit = int(match_num.group(1))
             
