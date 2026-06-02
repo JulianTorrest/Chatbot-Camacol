@@ -89,7 +89,7 @@ try:
     
     # 3. Verificar si el archivo es un puntero LFS (archivo corrupto en la nube)
     if os.path.getsize(LIVO_PATH) < 1024:
-        print(f"❌ ERROR CRÍTICO: {LIVO_PATH} es un puntero Git LFS ({os.path.getsize(LIVO_PATH)} bytes). No contiene datos reales.")
+        print(f" ERROR CRÍTICO: {LIVO_PATH} es un puntero Git LFS ({os.path.getsize(LIVO_PATH)} bytes). No contiene datos reales.")
         raise ValueError("Archivo Excel incompleto (Git LFS pointer).")
 
     LIVO_SQL_AVAILABLE = True
@@ -481,32 +481,32 @@ def inicializar_livo_sql():
         import livo_sql
         importlib.reload(livo_sql)
     except Exception as e:
-        print(f"⚠️ Error recargando livo_sql: {e}")
+        print(f" Error recargando livo_sql: {e}")
 
     if not LIVO_SQL_AVAILABLE or LIVO_PATH is None:
         razon = "Error de importación" if not LIVO_SQL_AVAILABLE else "Archivo Excel LIVO no encontrado en el servidor"
-        print(f"❌ LIVO_SQL no disponible: {razon}")
+        print(f" LIVO_SQL no disponible: {razon}")
         if LIVO_PATH is None:
             print(f"   Error: El sistema no pudo localizar los archivos en la carpeta LIVO/LIVO/")
         return None, False
     
     try:
-        print(f"\n🚀 Inicializando LIVO SQL...")
+        print(f"\n Inicializando LIVO SQL...")
         print(f"LIVO_PATH: {LIVO_PATH}")
         
         livo_system = LIVOSQLSystem(LIVO_PATH)
         exito, mensaje = livo_system.inicializar()
         
         if exito:
-            print(f"✅ LIVO SQL cargado exitosamente: {mensaje}")
+            print(f" LIVO SQL cargado exitosamente: {mensaje}")
             return livo_system, True
         else:
-            print(f"⚠️ Falló inicialización LIVO SQL: {mensaje}")
+            print(f" Falló inicialización LIVO SQL: {mensaje}")
             return None, False
             
     except Exception as e:
         import traceback
-        print(f"❌ Error crítico en inicialización LIVO SQL: {e}")
+        print(f" Error crítico en inicialización LIVO SQL: {e}")
         print(f"Traceback completo:\n{traceback.format_exc()}")
         return None, False
 
@@ -521,11 +521,11 @@ if "reasoning_system" not in st.session_state and REASONING_AVAILABLE:
     try:
         st.session_state.reasoning_system = ReasoningSystem()
         st.session_state.reasoning_initialized = True
-        print("✅ Sistema de razonamiento inicializado")
+        print(" Sistema de razonamiento inicializado")
     except Exception as e:
         st.session_state.reasoning_system = None
         st.session_state.reasoning_initialized = False
-        print(f"❌ Error inicializando sistema de razonamiento: {e}")
+        print(f" Error inicializando sistema de razonamiento: {e}")
 
 # Función para detectar consultas de datos
 # Funciones para detectar tipo de consulta
@@ -634,13 +634,13 @@ def es_consulta_rag(pregunta: str) -> bool:
 def procesar_consulta_datos(pregunta: str) -> tuple:
     """Procesa una consulta sobre datos usando el analizador"""
     if not DATA_ANALYZER_AVAILABLE or not hasattr(st.session_state, 'data_analyzer') or st.session_state.data_analyzer is None:
-        return False, "❌ El analizador de datos no está disponible en este momento."
+        return False, " El analizador de datos no está disponible en este momento."
     
     try:
         # Obtener API key de OpenAI
         openai_key = st.secrets.get("OPENAI_API_KEY")
         if not openai_key:
-            return False, "❌ No se encontró la clave de API de OpenAI para análisis de datos."
+            return False, " No se encontró la clave de API de OpenAI para análisis de datos."
         
         # Ejecutar consulta con failover automático
         exito, resultado, estrategia = st.session_state.data_analyzer.consultar(
@@ -652,9 +652,9 @@ def procesar_consulta_datos(pregunta: str) -> tuple:
         if exito:
             # Agregar badge de estrategia usada
             if estrategia == "langchain":
-                badge = "🔗 LangChain"
+                badge = " LangChain"
             elif estrategia == "pandasai":
-                badge = "🐼 PandasAI (Fallback)"
+                badge = " PandasAI (Fallback)"
             else:
                 badge = "📊"
             
@@ -663,7 +663,7 @@ def procesar_consulta_datos(pregunta: str) -> tuple:
             return False, resultado
             
     except Exception as e:
-        return False, f"❌ Error al procesar consulta de datos: {str(e)}"
+        return False, f" Error al procesar consulta de datos: {str(e)}"
 
 def procesar_con_prioridad_livo(pregunta: str) -> tuple:
     """Procesa consulta con prioridad LIVO: Intenta LIVO primero, si falla usa sistema híbrido"""
@@ -671,18 +671,18 @@ def procesar_con_prioridad_livo(pregunta: str) -> tuple:
     print(f"Pregunta: {pregunta}")
     
     if not RAG_AVAILABLE or not hasattr(st.session_state, 'rag_system') or st.session_state.rag_system is None:
-        print("❌ RAG no disponible")
-        return False, "❌ El sistema RAG no está disponible en este momento."
+        print(" RAG no disponible")
+        return False, " El sistema RAG no está disponible en este momento."
     
     try:
         # Detectar si necesita análisis de datos
-        print("📊 Llamando a buscar_con_analisis...")
+        print(" Llamando a buscar_con_analisis...")
         exito, resultado = st.session_state.rag_system.buscar_con_analisis(pregunta, k=5)
         
         print(f"Resultado buscar_con_analisis: exito={exito}")
         if not exito:
-            print("❌ buscar_con_analisis falló")
-            return False, "❌ No se pudo procesar la consulta."
+            print(" buscar_con_analisis falló")
+            return False, " No se pudo procesar la consulta."
         
         print(f"\n=== RESULTADO ANÁLISIS ===")
         print(f"Needs analysis: {resultado['needs_analysis']}")
@@ -704,7 +704,7 @@ def procesar_con_prioridad_livo(pregunta: str) -> tuple:
             for livo_path in livo_paths:
                 if livo_path.exists() and livo_path in resultado["data_files"]:
                     livo_encontrado = livo_path
-                    print(f"✅ LIVO encontrado en archivos de datos: {livo_path.name}")
+                    print(f" LIVO encontrado en archivos de datos: {livo_path.name}")
                     break
             
             if livo_encontrado:
@@ -716,17 +716,17 @@ def procesar_con_prioridad_livo(pregunta: str) -> tuple:
                         exito_sql, respuesta_sql, _ = st.session_state.livo_sql.consultar(pregunta, obtener_respuesta_ia)
                         
                         if exito_sql:
-                            print("✅ DuckDB respondió exitosamente!")
-                            resultado_final = f"🚀 **FUENTE: LIVO SQL (DuckDB) - Ultra Rápido**\n\n"
+                            print(" DuckDB respondió exitosamente!")
+                            resultado_final = f" **FUENTE: LIVO SQL (DuckDB) - Ultra Rápido**\n\n"
                             resultado_final += respuesta_sql
                             return True, resultado_final
                         else:
-                            print(f"⚠️ DuckDB falló: {respuesta_sql}")
+                            print(f" DuckDB falló: {respuesta_sql}")
                     except Exception as e:
-                        print(f"⚠️ Error con DuckDB: {e}")
+                        print(f" Error con DuckDB: {e}")
                 
                 # FALLBACK: Usar Pandas (más lento pero funcional)
-                print("🐌 Fallback a Pandas...")
+                print(" Fallback a Pandas...")
                 if PANDAS_AVAILABLE:
                     try:
                         # Cargar LIVO
@@ -772,19 +772,19 @@ Analiza los datos y responde de forma precisa. Si no puedes responder con estos 
         return procesar_consulta_hibrida(pregunta)
         
     except Exception as e:
-        return False, f"❌ Error: {str(e)}"
+        return False, f" Error: {str(e)}"
 
 def procesar_consulta_hibrida(pregunta: str) -> tuple:
     """Procesa consulta híbrida: RAG + Data Analyzer con múltiples archivos"""
     if not RAG_AVAILABLE or not hasattr(st.session_state, 'rag_system') or st.session_state.rag_system is None:
-        return False, "❌ El sistema RAG no está disponible en este momento."
+        return False, " El sistema RAG no está disponible en este momento."
     
     try:
         # Usar búsqueda híbrida del RAG
         exito, resultado = st.session_state.rag_system.buscar_con_analisis(pregunta, k=5)
         
         if not exito:
-            return False, "❌ No se pudo procesar la consulta."
+            return False, " No se pudo procesar la consulta."
         
         # DEBUG: Mostrar qué detectó
         print(f"\n=== DEBUG CONSULTA HÍBRIDA ===")
@@ -799,7 +799,7 @@ def procesar_consulta_hibrida(pregunta: str) -> tuple:
         
         # 1. Agregar contexto RAG si existe
         if resultado["rag_results"]:
-            respuesta_final += "📚 **FUENTE: Documentos CAMACOL (Sistema RAG)**\n\n"
+            respuesta_final += " **FUENTE: Documentos CAMACOL (Sistema RAG)**\n\n"
             
             # Mostrar documentos encontrados
             docs_unicos = set()
@@ -852,7 +852,7 @@ def procesar_consulta_hibrida(pregunta: str) -> tuple:
                     for archivo in resultado["data_files"][:1]: # Probar con el primer archivo relevante
                         if archivo.suffix.lower() in ['.xlsx', '.xls'] and "livo" not in archivo.name.lower() and "coyuntura" not in archivo.name.lower():
                             try:
-                                print(f"🚀 Iniciando SQL Dinámico para: {archivo.name}")
+                                print(f" Iniciando SQL Dinámico para: {archivo.name}")
                                 dyn_system = DynamicExcelSQLSystem(str(archivo))
                                 ok_init, msg_init = dyn_system.inicializar()
                                 
@@ -864,7 +864,7 @@ def procesar_consulta_hibrida(pregunta: str) -> tuple:
                                         # Añadir al contexto para el LLM final
                                         analisis_datos += f"\nConsulta SQL directa a {archivo.name}:\n{resp_query}\n"
                             except Exception as e:
-                                print(f"⚠️ Error en SQL Dinámico: {e}")
+                                print(f" Error en SQL Dinámico: {e}")
 
                 
                 respuesta_final += "\n"
@@ -928,8 +928,8 @@ def procesar_consulta_coyuntura(pregunta: str, livo_sql=None, rag_system=None) -
                 'variacion_porcentual' in resultado_busqueda or
                 'mensaje' in resultado_busqueda):
                 
-                print("✅ Búsqueda exitosa con CoyunturaBuscador")
-                respuesta = f"📊 **Resultado de Coyuntura (Lenguaje Natural)**\n\n"
+                print(" Búsqueda exitosa con CoyunturaBuscador")
+                respuesta = f" **Resultado de Coyuntura (Lenguaje Natural)**\n\n"
                 
                 # Formatear respuesta según el tipo de resultado
                 if 'valor' in resultado_busqueda:
@@ -990,7 +990,7 @@ def procesar_consulta_coyuntura(pregunta: str, livo_sql=None, rag_system=None) -
         sistemas_usados.append("Rotación de Inventarios")
     
     if contexto_coyuntura.strip():
-        print(f"✅ Contexto de Coyuntura generado desde: {', '.join(sistemas_usados)}")
+        print(f" Contexto de Coyuntura generado desde: {', '.join(sistemas_usados)}")
         prompt_coyuntura = f"""Eres un asistente experto de CAMACOL. Responde la pregunta usando el siguiente contexto de coyuntura del mercado de vivienda.
 
 CONTEXTO DE COYUNTURA:
@@ -1003,7 +1003,7 @@ RESPUESTA:"""
         
         # Verificar si la respuesta es útil antes de devolverla
         if respuesta_llm and "no tengo información" not in respuesta_llm.lower():
-            resultado_final = f"📈 **FUENTE: Datos de Coyuntura ({', '.join(sistemas_usados)})**\n\n{respuesta_llm}\n\n_Generado por: {proveedor}_"
+            resultado_final = f" **FUENTE: Datos de Coyuntura ({', '.join(sistemas_usados)})**\n\n{respuesta_llm}\n\n_Generado por: {proveedor}_"
             return True, resultado_final
         
         # MEJORA: Análisis de Causa-Raíz Simplificado
@@ -1030,29 +1030,29 @@ RESPUESTA MEJORADA:"""
 
     # 2. Fallback a LIVO SQL
     if LIVO_SQL_AVAILABLE and livo_sql:
-        print("🚀 Fallback a LIVO SQL (DuckDB)...")
+        print(" Fallback a LIVO SQL (DuckDB)...")
         exito_sql, respuesta_sql, _ = livo_sql.consultar(pregunta, obtener_respuesta_ia)
         if exito_sql:
-            resultado_final = f"🚀 **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta_sql}"
+            resultado_final = f" **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta_sql}"
             return True, resultado_final
-        print("⚠️ LIVO SQL falló, pasando a RAG...")
+        print(" LIVO SQL falló, pasando a RAG...")
 
     # 3. Fallback a RAG
     if RAG_AVAILABLE and rag_system:
-        print("📚 Fallback a RAG...")
+        print(" Fallback a RAG...")
         exito_rag, respuesta_rag = procesar_consulta_rag(pregunta)
         if exito_rag:
             return True, respuesta_rag
-        print("⚠️ RAG falló, pasando a LLM general...")
+        print(" RAG falló, pasando a LLM general...")
 
     # 4. Fallback a LLM General
-    print("🤖 Fallback a LLM General...")
+    print(" Fallback a LLM General...")
     prompt_general = f"CONTEXTO: {CAMACOL_CONTEXT}\n\nPREGUNTA: {pregunta}\n\nRESPUESTA:"
     respuesta_general, proveedor = obtener_respuesta_ia(prompt_general)
     if respuesta_general:
-        return True, f"🤖 **FUENTE: Conocimiento General**\n\n{respuesta_general}\n\n_Generado por: {proveedor}_"
+        return True, f" **FUENTE: Conocimiento General**\n\n{respuesta_general}\n\n_Generado por: {proveedor}_"
 
-    return False, "❌ No se pudo obtener una respuesta de ninguna fuente."
+    return False, " No se pudo obtener una respuesta de ninguna fuente."
 
 def _analizar_causa_raiz_simplificado(pregunta: str) -> Optional[str]:
     """Si la pregunta es sobre una caída en ventas, busca caídas previas en lanzamientos/iniciaciones."""
@@ -1073,7 +1073,7 @@ def _analizar_causa_raiz_simplificado(pregunta: str) -> Optional[str]:
             if var_lanzamientos < -5 or var_iniciaciones < -5:
                 return f"Se ha detectado una caída previa en otros indicadores. Hace unos meses, los lanzamientos cayeron un {var_lanzamientos}% y las iniciaciones un {var_iniciaciones}%. Esto podría estar relacionado con la disminución actual de las ventas."
         except Exception as e:
-            print(f"⚠️ Error en análisis de causa-raíz: {e}")
+            print(f" Error en análisis de causa-raíz: {e}")
     return None
 
 def obtener_contexto_macroeconomico(pregunta_original: str = "") -> Optional[str]:
@@ -1104,14 +1104,14 @@ def obtener_contexto_macroeconomico(pregunta_original: str = "") -> Optional[str
                     prompt_resumen = f"Basado en la siguiente información de documentos, resume los 4 puntos clave del contexto macroeconómico para la construcción en Colombia en el año {año_contexto}. ENFÓCATE EXCLUSIVAMENTE en datos del {año_contexto}:\n\n{contexto_rag}\n\nResumen para {año_contexto}:"
                     respuesta_resumida, _ = obtener_respuesta_ia(prompt_resumen)
                     if respuesta_resumida and año_contexto in respuesta_resumida:
-                        print(f"✅ Contexto macroeconómico {año_contexto} obtenido desde RAG.")
-                        return f"🔗 **Contexto Macroeconómico {año_contexto} (Fuentes Documentales):**\n{respuesta_resumida}"
+                        print(f" Contexto macroeconómico {año_contexto} obtenido desde RAG.")
+                        return f" **Contexto Macroeconómico {año_contexto} (Fuentes Documentales):**\n{respuesta_resumida}"
                 
-                print(f"⚠️ RAG no tiene información específica del {año_contexto}, pasando a LLM...")
+                print(f" RAG no tiene información específica del {año_contexto}, pasando a LLM...")
             else:
-                print(f"⚠️ RAG no encontró información macroeconómica, pasando a LLM...")
+                print(f" RAG no encontró información macroeconómica, pasando a LLM...")
         except Exception as e:
-            print(f"⚠️ Error al obtener contexto macro desde RAG: {e}")
+            print(f" Error al obtener contexto macro desde RAG: {e}")
 
     # 2. Fallback a LLM general - SIEMPRE con el año específico
     print(f"🔄 Usando LLM general para contexto macroeconómico {año_contexto}...")
@@ -1138,17 +1138,17 @@ def enriquecer_respuesta_con_contexto(respuesta: str, contexto_externo: str) -> 
 def procesar_consulta_rag(pregunta: str) -> tuple:
     """Procesa una consulta sobre documentos RAG"""
     if not RAG_AVAILABLE or not hasattr(st.session_state, 'rag_system') or st.session_state.rag_system is None:
-        return False, "❌ El sistema RAG no está disponible en este momento."
+        return False, " El sistema RAG no está disponible en este momento."
     
     try:
         # Buscar en documentos RAG
         exito, resultados = st.session_state.rag_system.buscar(pregunta, k=5)
         
         if not exito or not resultados:
-            return False, "❌ No se encontró información relevante en los documentos."
+            return False, " No se encontró información relevante en los documentos."
         
         # Construir contexto con los documentos encontrados
-        contexto = "📚 **FUENTE: Documentos CAMACOL (Sistema RAG)**\n\n"
+        contexto = " **FUENTE: Documentos CAMACOL (Sistema RAG)**\n\n"
         contexto += "### Documentos relevantes encontrados:\n\n"
         
         documentos_unicos = {}
@@ -1199,15 +1199,15 @@ RESPUESTA:"""
             resultado_final += f"*Generado por: {proveedor}*"
             return True, resultado_final
         else:
-            return False, f"❌ Error al generar respuesta: {proveedor}"
+            return False, f" Error al generar respuesta: {proveedor}"
             
     except Exception as e:
-        return False, f"❌ Error al procesar consulta RAG: {str(e)}"
+        return False, f" Error al procesar consulta RAG: {str(e)}"
 # Autenticación básica
 def verificar_autenticacion():
     """Verifica si el usuario está autenticado"""
     if not st.session_state.authenticated:
-        st.title("🔐 Acceso al Chatbot CAMACOL")
+        st.title(" Acceso al Chatbot CAMACOL")
         st.markdown("---")
         
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -1222,10 +1222,10 @@ def verificar_autenticacion():
                     st.session_state.authenticated = True
                     st.rerun()
                 else:
-                    st.error("❌ Contraseña incorrecta")
+                    st.error("Contraseña incorrecta")
         
         st.markdown("---")
-        st.info("💡 Contacta al administrador para obtener acceso")
+        st.info("Contacta al administrador para obtener acceso")
         st.stop()
 
 # Funciones de historial persistente
@@ -1417,12 +1417,12 @@ verificar_autenticacion()
 
 # Sidebar
 with st.sidebar:
-    st.title("🏗️ CAMACOL")
+    st.title("CAMACOL")
     st.markdown("**Chatbot Inteligente**")
     st.markdown("---")
     
     # Selector de tema
-    st.markdown("### 🎨 Tema")
+    st.markdown("### Tema")
     tema_actual = st.session_state.tema
     nuevo_tema = st.selectbox("Selecciona el tema", ["Claro", "Oscuro"], 
                                index=0 if tema_actual == "Claro" else 1)
@@ -1433,21 +1433,21 @@ with st.sidebar:
     st.markdown("---")
     
     # Gestión de historial
-    st.markdown("### 💾 Historial")
+    st.markdown("### Historial")
     
     # Guardar chat actual
-    if st.button("💾 Guardar Chat Actual", use_container_width=True):
+    if st.button("Guardar Chat Actual", use_container_width=True):
         archivo = guardar_historial()
-        st.success(f"✅ Chat guardado: {archivo.name}")
+        st.success(f"Chat guardado: {archivo.name}")
     
     # Cargar historial
     st.markdown("#### Cargar Chat Anterior")
     historicos = listar_historicos()
     if historicos:
         archivo_seleccionado = st.selectbox("Selecciona un chat", historicos)
-        if st.button("📂 Cargar Chat", use_container_width=True):
+        if st.button("Cargar Chat", use_container_width=True):
             if cargar_historial(archivo_seleccionado):
-                st.success("✅ Chat cargado")
+                st.success("Chat cargado")
                 st.rerun()
     else:
         st.info("No hay chats guardados")
@@ -1455,21 +1455,21 @@ with st.sidebar:
     st.markdown("---")
     
     # Exportar conversación
-    st.markdown("### 📤 Exportar")
+    st.markdown("### Exportar")
     
     col1, col2 = st.columns(2)
     with col1:
         texto = exportar_texto()
-        st.download_button("📄 TXT", texto, "conversacion.txt", "text/plain", use_container_width=True)
+        st.download_button("TXT", texto, "conversacion.txt", "text/plain", use_container_width=True)
     
     with col2:
         json_data = exportar_json()
-        st.download_button("📦 JSON", json_data, "conversacion.json", "application/json", use_container_width=True)
+        st.download_button("JSON", json_data, "conversacion.json", "application/json", use_container_width=True)
     
     st.markdown("---")
     
     # Búsqueda
-    st.markdown("### 🔍 Búsqueda")
+    st.markdown("### Búsqueda")
     busqueda = st.text_input("Buscar en conversación", "")
     if busqueda:
         resultados = []
@@ -1491,68 +1491,68 @@ with st.sidebar:
     st.markdown("---")
     
     # Limpiar chat
-    if st.button("🗑️ Limpiar Chat", use_container_width=True):
+    if st.button("Limpiar Chat", use_container_width=True):
         st.session_state.messages = [st.session_state.messages[0]]
         st.session_state.chat_history_file = None
         st.rerun()
     
     # Info
     st.markdown("---")
-    st.markdown("### ℹ️ Información")
+    st.markdown("### Información")
     st.info("Chatbot inteligente con acceso a documentos CAMACOL y análisis de datos del sector constructor.")
     
     # Mostrar sistemas disponibles
     sistemas_disponibles = []
     if RAG_AVAILABLE:
-        sistemas_disponibles.append("📚 RAG")
+        sistemas_disponibles.append("RAG")
     if LIVO_SQL_AVAILABLE:
-        sistemas_disponibles.append("🏗️ LIVO SQL")
+        sistemas_disponibles.append("LIVO SQL")
     if DATA_ANALYZER_AVAILABLE:
-        sistemas_disponibles.append("📊 Análisis Excel")
+        sistemas_disponibles.append("Análisis Excel")
     if REASONING_AVAILABLE:
-        sistemas_disponibles.append("🧠 Razonamiento")
+        sistemas_disponibles.append("Razonamiento")
     if COYUNTURA_LANZAMIENTOS_AVAILABLE:
-        sistemas_disponibles.append("📈 Coyuntura Lanzamientos")
+        sistemas_disponibles.append("Coyuntura Lanzamientos")
     if COYUNTURA_INICIACIONES_AVAILABLE:
-        sistemas_disponibles.append("🏗️ Coyuntura Iniciaciones")
+        sistemas_disponibles.append("Coyuntura Iniciaciones")
     if COYUNTURA_VENTAS_AVAILABLE:
-        sistemas_disponibles.append("💰 Coyuntura Ventas")
+        sistemas_disponibles.append("Coyuntura Ventas")
     if COYUNTURA_OFERTA_AVAILABLE:
-        sistemas_disponibles.append("🏢 Coyuntura Oferta")
+        sistemas_disponibles.append("Coyuntura Oferta")
     if COMPARADOR_COYUNTURA_AVAILABLE:
-        sistemas_disponibles.append("🔄 Comparación Cuádruple")
+        sistemas_disponibles.append("Comparación Cuádruple")
     if COYUNTURA_UTV_AVAILABLE:
-        sistemas_disponibles.append("📉 Coyuntura UTV (Riesgo)")
+        sistemas_disponibles.append("Coyuntura UTV (Riesgo)")
     if COYUNTURA_ROTACION_AVAILABLE:
-        sistemas_disponibles.append("🔄 Coyuntura Rotación Inventarios")
+        sistemas_disponibles.append("Coyuntura Rotación Inventarios")
     
     if sistemas_disponibles:
         st.success(f"Sistemas activos: {', '.join(sistemas_disponibles)}")
     
     # Información específica de los sistemas de coyuntura
     if COYUNTURA_LANZAMIENTOS_AVAILABLE or COYUNTURA_INICIACIONES_AVAILABLE or COYUNTURA_VENTAS_AVAILABLE or COYUNTURA_OFERTA_AVAILABLE:
-        if st.button("📊 Info Coyuntura", use_container_width=True):
+        if st.button("Info Coyuntura", use_container_width=True):
             
             # Sistema de Lanzamientos
             if COYUNTURA_LANZAMIENTOS_AVAILABLE:
-                with st.expander("📈 Sistema de Coyuntura de Lanzamientos", expanded=True):
+                with st.expander("Sistema de Coyuntura de Lanzamientos", expanded=True):
                     stats_lan = lanzamientos_coyuntura.obtener_estadisticas_generales()
                     st.markdown(f"""
-                    **📊 Datos Históricos de Lanzamientos:**
+                    **Datos Históricos de Lanzamientos:**
                     - **Período:** {stats_lan['periodo_cobertura']['desde']} a {stats_lan['periodo_cobertura']['hasta']}
                     - **Total registros:** {stats_lan['total_registros']:,}
                     - **Departamentos:** {stats_lan['departamentos_cubiertos']}
                     - **Total lanzamientos:** {stats_lan['total_lanzamientos_historicos']:,}
                     
-                    **🏠 Clasificaciones:**
+                    **Clasificaciones:**
                     - VIP (≤ 90 SMMLV)
                     - VIS (90-135/150 SMMLV según municipio)
                     - No VIS (> 135/150 SMMLV)
                     
-                    **🗺️ Agregaciones Regionales:**
+                    **Agregaciones Regionales:**
                     - {', '.join(stats_lan['agregaciones_disponibles'])}
                     
-                    **✨ Funcionalidades:**
+                    **Funcionalidades:**
                     - Contexto automático por departamento
                     - Análisis de tendencias recientes
                     - Comparaciones departamentales
@@ -1561,24 +1561,24 @@ with st.sidebar:
             
             # Sistema de Iniciaciones
             if COYUNTURA_INICIACIONES_AVAILABLE:
-                with st.expander("🏗️ Sistema de Coyuntura de Iniciaciones", expanded=True):
+                with st.expander("Sistema de Coyuntura de Iniciaciones", expanded=True):
                     stats_ini = iniciaciones_coyuntura.obtener_estadisticas_generales()
                     st.markdown(f"""
-                    **🏗️ Datos Históricos de Iniciaciones:**
+                    **Datos Históricos de Iniciaciones:**
                     - **Período:** {stats_ini['periodo_cobertura']['desde']} a {stats_ini['periodo_cobertura']['hasta']}
                     - **Total registros:** {stats_ini['total_registros']:,}
                     - **Departamentos:** {stats_ini['departamentos_cubiertos']}
                     - **Total iniciaciones:** {stats_ini['total_iniciaciones_historicas']:,}
                     
-                    **🏠 Clasificaciones:**
+                    **Clasificaciones:**
                     - VIP (≤ 90 SMMLV)
                     - VIS (90-135/150 SMMLV según municipio)
                     - No VIS (> 135/150 SMMLV)
                     
-                    **🗺️ Agregaciones Regionales:**
+                    **Agregaciones Regionales:**
                     - {', '.join(stats_ini['agregaciones_disponibles'])}
                     
-                    **✨ Funcionalidades:**
+                    **Funcionalidades:**
                     - Contexto automático por departamento
                     - Análisis de tendencias recientes
                     - Comparaciones departamentales
@@ -1588,24 +1588,24 @@ with st.sidebar:
             
             # Sistema de Ventas
             if COYUNTURA_VENTAS_AVAILABLE:
-                with st.expander("💰 Sistema de Coyuntura de Ventas", expanded=True):
+                with st.expander("Sistema de Coyuntura de Ventas", expanded=True):
                     stats_ventas = ventas_coyuntura.obtener_estadisticas_generales()
                     st.markdown(f"""
-                    **💰 Datos Históricos de Ventas:**
+                    **Datos Históricos de Ventas:**
                     - **Período:** {stats_ventas['periodo_cobertura']['desde']} a {stats_ventas['periodo_cobertura']['hasta']}
                     - **Total registros:** {stats_ventas['total_registros']:,}
                     - **Departamentos:** {stats_ventas['departamentos_cubiertos']}
                     - **Total ventas:** {stats_ventas['total_ventas_historicas']:,}
                     
-                    **🏠 Clasificaciones:**
+                    **Clasificaciones:**
                     - VIP (≤ 90 SMMLV)
                     - VIS (90-135/150 SMMLV según municipio)
                     - No VIS (> 135/150 SMMLV)
                     
-                    **🗺️ Agregaciones Regionales:**
+                    **Agregaciones Regionales:**
                     - {', '.join(stats_ventas['agregaciones_disponibles'])}
                     
-                    **✨ Funcionalidades:**
+                    **Funcionalidades:**
                     - Contexto automático por departamento
                     - Análisis de tendencias recientes
                     - Comparaciones departamentales
@@ -1615,24 +1615,24 @@ with st.sidebar:
             
             # Sistema de Oferta
             if COYUNTURA_OFERTA_AVAILABLE:
-                with st.expander("🏢 Sistema de Coyuntura de Oferta", expanded=True):
+                with st.expander("Sistema de Coyuntura de Oferta", expanded=True):
                     stats_oferta = oferta_coyuntura.obtener_estadisticas_generales()
                     st.markdown(f"""
-                    **🏢 Datos Históricos de Oferta:**
+                    **Datos Históricos de Oferta:**
                     - **Período:** {stats_oferta['periodo_cobertura']['desde']} a {stats_oferta['periodo_cobertura']['hasta']}
                     - **Total registros:** {stats_oferta['total_registros']:,}
                     - **Departamentos:** {stats_oferta['departamentos_cubiertos']}
                     - **Total oferta:** {stats_oferta['total_oferta_historica']:,}
                     
-                    **🏠 Clasificaciones:**
+                    **Clasificaciones:**
                     - VIP (≤ 90 SMMLV)
                     - VIS (90-135/150 SMMLV según municipio)
                     - No VIS (> 135/150 SMMLV)
                     
-                    **🗺️ Agregaciones Regionales:**
+                    **Agregaciones Regionales:**
                     - {', '.join(stats_oferta['agregaciones_disponibles'])}
                     
-                    **✨ Funcionalidades:**
+                    **Funcionalidades:**
                     - Contexto automático por departamento
                     - Análisis de tendencias recientes
                     - Comparaciones departamentales
@@ -1642,15 +1642,15 @@ with st.sidebar:
             
             # Comparación entre sistemas si ambos están disponibles
             if COYUNTURA_LANZAMIENTOS_AVAILABLE and COYUNTURA_INICIACIONES_AVAILABLE:
-                with st.expander("📊 Comparación Lanzamientos vs Iniciaciones", expanded=False):
+                with st.expander("Comparación Lanzamientos vs Iniciaciones", expanded=False):
                     comparacion = iniciaciones_coyuntura.comparar_con_lanzamientos(lanzamientos_coyuntura)
                     st.markdown(f"""
-                    **📈 Totales Históricos:**
+                    **Totales Históricos:**
                     - **Lanzamientos:** {comparacion['totales']['lanzamientos']:,} unidades
                     - **Iniciaciones:** {comparacion['totales']['iniciaciones']:,} unidades
                     - **Ratio Ini/Lan:** {comparacion['totales']['ratio_ini_lan']}
                     
-                    **🏠 Distribución Comparada:**
+                    **Distribución Comparada:**
                     
                     | Tipo | Lanzamientos | Iniciaciones | Diferencia |
                     |------|-------------|-------------|-----------|
@@ -1658,7 +1658,7 @@ with st.sidebar:
                     | VIS | {comparacion['distribucion_comparada']['lanzamientos']['vis']}% | {comparacion['distribucion_comparada']['iniciaciones']['vis']}% | {comparacion['diferencias']['vis']:+.1f}% |
                     | No VIS | {comparacion['distribucion_comparada']['lanzamientos']['no_vis']}% | {comparacion['distribucion_comparada']['iniciaciones']['no_vis']}% | {comparacion['diferencias']['no_vis']:+.1f}% |
                     
-                    **💡 Interpretación:**
+                    **Interpretación:**
                     - Lanzamientos = Proyectos que inician comercialización
                     - Iniciaciones = Proyectos que inician construcción
                     - Diferencias revelan dinámicas del mercado
@@ -1667,29 +1667,29 @@ with st.sidebar:
     # Comparación Cuádruple (solo reporte ejecutivo)
     if COMPARADOR_COYUNTURA_AVAILABLE:
         st.markdown("---")
-        if st.button("🔄 Reporte Ejecutivo Cuádruple", use_container_width=True):
-            with st.expander("📋 Reporte Ejecutivo - Análisis Integral", expanded=True):
+        if st.button("Reporte Ejecutivo Cuádruple", use_container_width=True):
+            with st.expander("Reporte Ejecutivo - Análisis Integral", expanded=True):
                 try:
                     reporte = comparador_coyuntura.generar_reporte_ejecutivo()
                     st.code(reporte, language=None)
                     
                     # Información adicional
-                    st.info("💡 **Nota**: Este reporte se genera automáticamente en las respuestas del chatbot cuando se consulta sobre comparaciones entre sistemas de coyuntura.")
+                    st.info("**Nota**: Este reporte se genera automáticamente en las respuestas del chatbot cuando se consulta sobre comparaciones entre sistemas de coyuntura.")
                 except Exception as e:
                     st.error(f"Error generando reporte: {e}")
     
     # Gestión RAG
     if RAG_AVAILABLE and hasattr(st.session_state, 'rag_system') and st.session_state.rag_system:
         st.markdown("---")
-        st.markdown("### 📚 Sistema RAG")
+        st.markdown("### Sistema RAG")
         
-        if st.button("📚 Ver Documentos", use_container_width=True):
-            with st.expander("📄 Documentos Indexados", expanded=True):
+        if st.button("Ver Documentos", use_container_width=True):
+            with st.expander("Documentos Indexados", expanded=True):
                 docs_info = st.session_state.rag_system.listar_documentos()
                 st.markdown(docs_info)
         
-        if st.button("🔄 Recargar RAG", use_container_width=True):
-            with st.spinner("🔄 Recargando documentos..."):
+        if st.button("Recargar RAG", use_container_width=True):
+            with st.spinner("Recargando documentos..."):
                 exito, mensaje = st.session_state.rag_system.inicializar(force_reload=True)
                 if exito:
                     st.success(mensaje)
@@ -1721,11 +1721,11 @@ st.markdown("---")
 
 # Sección de Información y Tablas
 # Sección de Información y Tablas
-with st.expander("📊 Información del Sistema", expanded=False):
-    tab1, tab2, tab3, tab4 = st.tabs(["📋 Diccionario LIVO", "🤖 Modelos LLM", "❓ Niveles de Consultas", "📊 Consultas LIVO por Nivel"])
+with st.expander(" Información del Sistema", expanded=False):
+    tab1, tab2, tab3, tab4 = st.tabs([" Diccionario LIVO", " Modelos LLM", " Niveles de Consultas", "📊 Consultas LIVO por Nivel"])
     
     with tab1:
-        st.markdown("### 📋 Diccionario de Datos LIVO")
+        st.markdown("###  Diccionario de Datos LIVO")
         st.markdown("**LIVO (Licencias de Construcción)** - Base de datos de Coordenada Urbana de Camacol")
         
         if PANDAS_AVAILABLE:
@@ -1790,13 +1790,13 @@ with st.expander("📊 Información del Sistema", expanded=False):
         """)
     
     with tab2:
-        st.markdown("### 🤖 Comparativa de Modelos LLM")
+        st.markdown("### Comparativa de Modelos LLM")
         
         if PANDAS_AVAILABLE:
             llm_comparison = pd.DataFrame({
                 "Modelo": ["Groq (Llama 3.3 70B)", "Google Gemini 2.0", "DeepSeek Chat", "OpenAI GPT-4o-mini", "Ollama Llama 3.1 (Local)", "Kimi (Moonshot)", "Cerebras", "Mistral AI", "Cohere", "AI21", "Hugging Face"],
-                "Velocidad": ["⚡⚡⚡ Ultra rápido", "⚡⚡ Rápido", "⚡⚡ Rápido", "⚡⚡ Rápido", "⚡ Lento (Local)", "⚡⚡ Rápido", "⚡⚡⚡ Ultra rápido", "⚡⚡ Rápido", "⚡⚡ Rápido", "⚡⚡ Rápido", "⚡ Variable"],
-                "Calidad": ["⭐⭐⭐⭐⭐", "⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐", "⭐⭐⭐"],
+                "Velocidad": ["Ultra rápido", "Rápido", "Rápido", "Rápido", "Lento (Local)", "Rápido", "Ultra rápido", "Rápido", "Rápido", "Rápido", "Variable"],
+                "Calidad": ["Excelente", "Excelente", "Muy bueno", "Excelente", "Muy bueno", "Muy bueno", "Muy bueno", "Muy bueno", "Muy bueno", "Bueno", "Bueno"],
                 "Costo": ["Gratis", "Gratis", "Gratis", "Pago", "Gratis (Local)", "Gratis", "Gratis", "Gratis", "Gratis", "Gratis", "Gratis"],
                 "Prioridad": [1, 2, 3, 4, 5, 8, 9, 10, 6, 7, 11]
             })
@@ -1811,11 +1811,11 @@ with st.expander("📊 Información del Sistema", expanded=False):
         """)
     
     with tab3:
-        st.markdown("### ❓ Niveles de Complejidad de Consultas")
+        st.markdown("### Niveles de Complejidad de Consultas")
         
         if PANDAS_AVAILABLE:
             query_levels = pd.DataFrame({
-                "Nivel": ["1️⃣ Básico", "2️⃣ Intermedio", "3️⃣ Avanzado", "4️⃣ Experto"],
+                "Nivel": ["1. Básico", "2. Intermedio", "3. Avanzado", "4. Experto"],
                 "Descripción": ["Información general sobre CAMACOL", "Búsqueda en documentos RAG", "Análisis de datos LIVO con SQL", "Análisis híbrido: RAG + Datos + LLM"],
                 "Ejemplos": ["¿Qué es CAMACOL? ¿Cuáles son los servicios?", "¿Qué dice el informe de Coordenada Urbana?", "¿Cuántas licencias se aprobaron en Bogotá?", "Evolución mensual de licencias VIS vs NO VIS en 2025"],
                 "Tiempo Respuesta": ["< 2 seg", "2-5 seg", "1-3 seg (SQL)", "5-10 seg"],
@@ -1833,16 +1833,16 @@ with st.expander("📊 Información del Sistema", expanded=False):
         """)
     
     with tab4:
-        st.markdown("### 📊 Consultas LIVO por Nivel de Complejidad")
+        st.markdown("### Consultas LIVO por Nivel de Complejidad")
         st.markdown("**Ejemplos de consultas SQL sobre la base de datos LIVO**")
         
         if PANDAS_AVAILABLE:
             livo_queries = pd.DataFrame({
                 "Nivel": [
-                    "1️⃣", "1️⃣", "1️⃣", "1️⃣",
-                    "2️⃣", "2️⃣", "2️⃣",
-                    "3️⃣", "3️⃣", "3️⃣", "3️⃣", "3️⃣",
-                    "4️⃣", "4️⃣", "4️⃣", "4️⃣", "4️⃣", "4️⃣", "4️⃣"
+                    "1", "1", "1", "1",
+                    "2", "2", "2",
+                    "3", "3", "3", "3", "3",
+                    "4", "4", "4", "4", "4", "4", "4"
                 ],
                 "Pregunta Recomendada": [
                     # Nivel 1
@@ -2008,7 +2008,7 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
         # Agradecer y resetear el estado
         st.session_state["waiting_for_feedback"] = False
         with st.chat_message("assistant"):
-            st.markdown("✅ ¡Feedback guardado! Muchas gracias por tu comentario, nos ayuda a mejorar.")
+            st.markdown(" ¡Feedback guardado! Muchas gracias por tu comentario, nos ayuda a mejorar.")
         st.session_state["feedback_context"] = {}
         # No se hace rerun aquí para que el usuario vea el mensaje de confirmación antes de poder escribir de nuevo.
 
@@ -2032,7 +2032,7 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
             st.session_state.messages.append({"role": "assistant", "content": respuesta_seguridad})
             st.stop()
         
-        print(f"🛡️ Nivel de Seguridad de la Pregunta: {clasificacion_seguridad}")
+        print(f" Nivel de Seguridad de la Pregunta: {clasificacion_seguridad}")
 
         # --- INTEGRACIÓN DE RAZONAMIENTO CAUSAL ---
         # BLOQUE DESHABILITADO - El razonamiento causal ahora se maneja en el flujo principal (PASO 2)
@@ -2117,11 +2117,11 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
             print(f"[DEBUG app.py] st.session_state.livo_sql_initialized: {st.session_state.get('livo_sql_initialized', False)}")
             
             if LIVO_SQL_AVAILABLE and hasattr(st.session_state, 'livo_sql') and st.session_state.livo_sql:
-                with st.spinner("🚀 Consultando base de datos LIVO con SQL..."):
+                with st.spinner("Consultando base de datos LIVO con SQL..."):
                     try:
                         exito, respuesta, _ = st.session_state.livo_sql.consultar(prompt, obtener_respuesta_ia)
                         if exito:
-                            st.markdown(f"🚀 **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta}")
+                            st.markdown(f" **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta}")
                             st.session_state.messages.append({"role": "assistant", "content": respuesta})
                             guardar_historial()
                             respuesta_generada = True
@@ -2133,15 +2133,15 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
                                 st.session_state.messages.append({"role": "assistant", "content": f"Ocurrió un error consultando LIVO: {respuesta}"})
                                 st.stop()
                             # Si LIVO falló por no ser pregunta LIVO, continuar con razonamiento
-                            print(f"⚠️ LIVO SQL continuó al fallback: {respuesta}")
+                            print(f" LIVO SQL continuó al fallback: {respuesta}")
                     except Exception as e:
-                        print(f"❌ Error crítico en consulta LIVO SQL: {e}")
+                        print(f" Error crítico en consulta LIVO SQL: {e}")
                         # Continuar al siguiente paso en caso de error crítico
             
             # PASO 2: Si LIVO no respondió, intentar sistema de razonamiento
             if prompt.lower().strip() not in preguntas_simples and REASONING_AVAILABLE and hasattr(st.session_state, 'reasoning_system') and st.session_state.reasoning_system:
                 try:
-                    with st.spinner("🧠 Analizando estructura de la pregunta..."):
+                    with st.spinner(" Analizando estructura de la pregunta..."):
                         history = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
                         analysis_result = analyze_and_respond(
                             question=prompt, 
@@ -2162,16 +2162,16 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
                             st.stop()
                         else:
                             # Si no necesita clarificación (la pregunta está completa), continuar al LLM/RAG general
-                            print(f"ℹ️ Pregunta completa. Continuando al fallback de datos o general...")
+                            print(f" Pregunta completa. Continuando al fallback de datos o general...")
                     else:
-                        print(f"⚠️ Sistema de razonamiento devolvió None o inválido, continuando al LLM general")
+                        print(f" Sistema de razonamiento devolvió None o inválido, continuando al LLM general")
                 except Exception as e:
-                    print(f"⚠️ Error en sistema de razonamiento: {e}, continuando al LLM general")
+                    print(f" Error en sistema de razonamiento: {e}, continuando al LLM general")
             
             # PASO 3: Fallback a RAG si LIVO falló
             if RAG_AVAILABLE and hasattr(st.session_state, 'rag_system') and st.session_state.rag_system:
-                print("⚠️ LIVO SQL falló, intentando con RAG...")
-                with st.spinner("🔍 Buscando en documentos..."):
+                print(" LIVO SQL falló, intentando con RAG...")
+                with st.spinner(" Buscando en documentos..."):
                     exito_rag, respuesta_rag = procesar_consulta_rag(prompt)
                     if exito_rag:
                         st.markdown(respuesta_rag)
@@ -2182,21 +2182,21 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
             
             # PASO 4: Fallback a LLM general si todo falló
             if not respuesta_generada:
-                print("🤖 Fallback a LLM general...")
+                print(" Fallback a LLM general...")
                 prompt_llm = f"""Eres un asistente experto de CAMACOL y el sector constructor en Colombia. Responde la siguiente pregunta de forma clara, concisa e informativa.
 
 Pregunta: {prompt}
 
 Respuesta:"""
-                with st.spinner("🤖 Generando respuesta..."):
+                with st.spinner(" Generando respuesta..."):
                     respuesta_llm, proveedor = obtener_respuesta_ia(prompt_llm)
                 if respuesta_llm:
-                    st.markdown(f"🤖 **Respuesta General (IA)**\n\n{respuesta_llm}\n\n_Generado por: {proveedor}_")
+                    st.markdown(f" **Respuesta General (IA)**\n\n{respuesta_llm}\n\n_Generado por: {proveedor}_")
                     st.session_state.messages.append({"role": "assistant", "content": respuesta_llm})
                     guardar_historial()
                     respuesta_generada = True
                 else:
-                    st.error("❌ No se pudo procesar la consulta con ningún sistema.")
+                    st.error(" No se pudo procesar la consulta con ningún sistema.")
                 
         except Exception as e:
             error_msg = f"Lo siento, ocurrió un error al procesar tu solicitud: {str(e)}"
