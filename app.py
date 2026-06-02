@@ -207,6 +207,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Ocultar elementos de Streamlit Cloud (Botón de Deploy, GitHub, Menú Hamburguesa y Footer)
+st.markdown("""
+    <style>
+    header {visibility: hidden;}
+    .stDeployButton {display:none !important;}
+    footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
+
 # Información REAL de contexto sobre CAMACOL (desde camacol.co)
 CAMACOL_CONTEXT = """
 CAMACOL (Cámara Colombiana de la Construcción) es el gremio líder del sector constructor en Colombia.
