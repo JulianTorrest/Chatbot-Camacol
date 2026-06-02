@@ -2044,130 +2044,131 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
     
     # Generar respuesta
     with st.chat_message("assistant"):
-        with st.spinner("Analizando tu pregunta..."):
-            # --- MEJORA: Escudo de Confianza y Seguridad ---
+        # --- MEJORA: Escudo de Confianza y Seguridad ---
+        with st.spinner("Analizando seguridad de la pregunta..."):
             clasificacion_seguridad = analizar_seguridad_pregunta(prompt)
-            if clasificacion_seguridad == "MALICIOSA":
-                respuesta_seguridad = "Lo siento, no puedo procesar esa solicitud ya que va en contra de mis principios de uso ético de la información."
-                st.error(respuesta_seguridad)
-                st.session_state.messages.append({"role": "assistant", "content": respuesta_seguridad})
-                st.stop()
-            elif clasificacion_seguridad == "DUDOSA":
-                respuesta_seguridad = "Entiendo tu pregunta. Para mantener la precisión y la veracidad, solo puedo proporcionar información basada en los datos verificables de CAMACOL. ¿Cómo puedo ayudarte dentro de ese marco?"
-                st.warning(respuesta_seguridad)
-                st.session_state.messages.append({"role": "assistant", "content": respuesta_seguridad})
-                st.stop()
-            
-            print(f"🛡️ Nivel de Seguridad de la Pregunta: {clasificacion_seguridad}")
+        
+        if clasificacion_seguridad == "MALICIOSA":
+            respuesta_seguridad = "Lo siento, no puedo procesar esa solicitud ya que va en contra de mis principios de uso ético de la información."
+            st.error(respuesta_seguridad)
+            st.session_state.messages.append({"role": "assistant", "content": respuesta_seguridad})
+            st.stop()
+        elif clasificacion_seguridad == "DUDOSA":
+            respuesta_seguridad = "Entiendo tu pregunta. Para mantener la precisión y la veracidad, solo puedo proporcionar información basada en los datos verificables de CAMACOL. ¿Cómo puedo ayudarte dentro de ese marco?"
+            st.warning(respuesta_seguridad)
+            st.session_state.messages.append({"role": "assistant", "content": respuesta_seguridad})
+            st.stop()
+        
+        print(f"🛡️ Nivel de Seguridad de la Pregunta: {clasificacion_seguridad}")
 
-            # --- INTEGRACIÓN DE RAZONAMIENTO CAUSAL ---
-            # BLOQUE DESHABILITADO - El razonamiento causal ahora se maneja en el flujo principal (PASO 2)
-            # con mejor manejo de errores y fallback a LLM general
-            # try:
-            #     st.write("[DEBUG app.py] Entrando a bloque de razonamiento causal")
-            #     # Obtener el contexto de la conversación reciente
-            #     contexto_adicional = "\n".join(
-            #         [msg["content"] for msg in st.session_state.messages[-3:]]
-            #     )
-            #     
-            #     # Obtener perfil del usuario para personalizar la respuesta
-            #     historial_preguntas = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
-            #     perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas) if user_profile_manager else "General"
-            #     
-            #     # Generar respuesta con razonamiento causal
-            #     resultado = analizar_y_responder(
-            #         pregunta=prompt,
-            #         contexto=contexto_adicional,
-            #         perfiles_expertos=["Economista", "Analista de Datos", "Experto en Políticas Públicas"],
-            #         livo_sql_system=st.session_state.livo_sql if hasattr(st.session_state, 'livo_sql') and st.session_state.livo_sql else None
-            #     )
-            #     
-            #     st.write(f"[DEBUG app.py] Resultado de analizar_y_responder: {resultado}")
-            #     # Mostrar la respuesta
-            #     st.markdown(resultado['respuesta'])
-            #     st.session_state.messages.append({
-            #         "role": "assistant", 
-            #         "content": resultado['respuesta']
-            #     })
-            #     
-            #     # Preparar para posible feedback
-            #     st.session_state["feedback_context"] = {
-            #         "question": prompt,
-            #         "answer": resultado['respuesta']
-            #     }
-            #     
-            #     # Preguntar por feedback
-            #     st.markdown("---")
-            #     st.markdown("_¿Te fue útil esta respuesta? (Sí/No)_")
-            #     
-            # except Exception as e:
-            #     st.error(f"Ocurrió un error al procesar tu pregunta: {str(e)}")
-            #     st.session_state.messages.append({
-            #         "role": "assistant", 
-            #         "content": f"Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde. Error: {str(e)}"
-            #     })
-            #     st.stop()
-            # --- MEJORA: Inferencia de Perfil, Deseo y Emoción ---
-            # Funcionalidades deshabilitadas temporalmente
-            # historial_preguntas = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
-            # perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas) if user_profile_manager else "General"
-            # deseo_profundo = inferir_deseo_profundo(prompt)
-            # tono_emocional = analizar_tono_emocional(prompt)
-            
-            # print(f"👤 Perfil Inferido: {perfil_usuario}")
-            # print(f"🧠 Deseo Profundo Inferido: {deseo_profundo}")
-            # print(f"🎭 Tono Emocional Detectado: {tono_emocional}")
+        # --- INTEGRACIÓN DE RAZONAMIENTO CAUSAL ---
+        # BLOQUE DESHABILITADO - El razonamiento causal ahora se maneja en el flujo principal (PASO 2)
+        # con mejor manejo de errores y fallback a LLM general
+        # try:
+        #     st.write("[DEBUG app.py] Entrando a bloque de razonamiento causal")
+        #     # Obtener el contexto de la conversación reciente
+        #     contexto_adicional = "\n".join(
+        #         [msg["content"] for msg in st.session_state.messages[-3:]]
+        #     )
+        #     
+        #     # Obtener perfil del usuario para personalizar la respuesta
+        #     historial_preguntas = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
+        #     perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas) if user_profile_manager else "General"
+        #     
+        #     # Generar respuesta con razonamiento causal
+        #     resultado = analizar_y_responder(
+        #         pregunta=prompt,
+        #         contexto=contexto_adicional,
+        #         perfiles_expertos=["Economista", "Analista de Datos", "Experto en Políticas Públicas"],
+        #         livo_sql_system=st.session_state.livo_sql if hasattr(st.session_state, 'livo_sql') and st.session_state.livo_sql else None
+        #     )
+        #     
+        #     st.write(f"[DEBUG app.py] Resultado de analizar_y_responder: {resultado}")
+        #     # Mostrar la respuesta
+        #     st.markdown(resultado['respuesta'])
+        #     st.session_state.messages.append({
+        #         "role": "assistant", 
+        #         "content": resultado['respuesta']
+        #     })
+        #     
+        #     # Preparar para posible feedback
+        #     st.session_state["feedback_context"] = {
+        #         "question": prompt,
+        #         "answer": resultado['respuesta']
+        #     }
+        #     
+        #     # Preguntar por feedback
+        #     st.markdown("---")
+        #     st.markdown("_¿Te fue útil esta respuesta? (Sí/No)_")
+        #     
+        # except Exception as e:
+        #     st.error(f"Ocurrió un error al procesar tu pregunta: {str(e)}")
+        #     st.session_state.messages.append({
+        #         "role": "assistant", 
+        #         "content": f"Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde. Error: {str(e)}"
+        #     })
+        #     st.stop()
+        # --- MEJORA: Inferencia de Perfil, Deseo y Emoción ---
+        # Funcionalidades deshabilitadas temporalmente
+        # historial_preguntas = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
+        # perfil_usuario = user_profile_manager.inferir_perfil(st.session_state.user_id, historial_preguntas) if user_profile_manager else "General"
+        # deseo_profundo = inferir_deseo_profundo(prompt)
+        # tono_emocional = analizar_tono_emocional(prompt)
+        
+        # print(f"👤 Perfil Inferido: {perfil_usuario}")
+        # print(f"🧠 Deseo Profundo Inferido: {deseo_profundo}")
+        # print(f"🎭 Tono Emocional Detectado: {tono_emocional}")
 
-            try:
-                preguntas_simples = [
-                    "qué es camacol", "que es camacol",
-                    "hola", "gracias", "adiós", "chao",
-                    "quiénes son", "quienes son",
-                    "qué hacen", "que hacen",
-                    "cuál es su función", "cual es su funcion",
-                    "qué es coordenada urbana", "que es coordenada urbana",
-                    "información de contacto", "informacion de contacto",
-                    "dónde están ubicados", "donde estan ubicados",
-                    "servicios", "qué servicios ofrecen"
-                ]
-                
-                respuesta_generada = False  # Bandera para rastrear si se generó alguna respuesta
-                
-                # --- LÓGICA SIMPLIFICADA: Intentar LIVO SQL PRIMERO ---
-                
-                # PASO 1: Intentar con LIVO SQL primero (prioridad máxima)
-                print(f"[DEBUG app.py] LIVO_SQL_AVAILABLE: {LIVO_SQL_AVAILABLE}")
-                print(f"[DEBUG app.py] hasattr(st.session_state, 'livo_sql'): {hasattr(st.session_state, 'livo_sql')}")
-                if hasattr(st.session_state, 'livo_sql'):
-                    print(f"[DEBUG app.py] st.session_state.livo_sql: {st.session_state.livo_sql}")
-                print(f"[DEBUG app.py] st.session_state.livo_sql_initialized: {st.session_state.get('livo_sql_initialized', False)}")
-                
-                if LIVO_SQL_AVAILABLE and hasattr(st.session_state, 'livo_sql') and st.session_state.livo_sql:
-                    with st.spinner("🚀 Consultando base de datos LIVO con SQL..."):
-                        try:
-                            exito, respuesta, _ = st.session_state.livo_sql.consultar(prompt, obtener_respuesta_ia)
-                            if exito:
-                                st.markdown(f"🚀 **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta}")
-                                st.session_state.messages.append({"role": "assistant", "content": respuesta})
-                                guardar_historial()
-                                respuesta_generada = True
-                                st.stop()  # Detener flujo aquí si LIVO respondió exitosamente
-                            else:
-                                # Si es un error real del sistema LIVO (no una clasificación negativa)
-                                if "Consulta no clasificada como LIVO" not in respuesta:
-                                    st.error(f"Error en sistema LIVO: {respuesta}")
-                                    st.session_state.messages.append({"role": "assistant", "content": f"Ocurrió un error consultando LIVO: {respuesta}"})
-                                    st.stop()
-                                # Si LIVO falló por no ser pregunta LIVO, continuar con razonamiento
-                                print(f"⚠️ LIVO SQL continuó al fallback: {respuesta}")
-                        except Exception as e:
-                            print(f"❌ Error crítico en consulta LIVO SQL: {e}")
-                            # Continuar al siguiente paso en caso de error crítico
-                
-                # PASO 2: Si LIVO no respondió, intentar sistema de razonamiento
-                # NOTA: Si el razonamiento devuelve clarificaciones, NO las mostramos y continuamos al LLM general
-                if prompt.lower().strip() not in preguntas_simples and REASONING_AVAILABLE and hasattr(st.session_state, 'reasoning_system') and st.session_state.reasoning_system:
+        try:
+            preguntas_simples = [
+                "qué es camacol", "que es camacol",
+                "hola", "gracias", "adiós", "chao",
+                "quiénes son", "quienes son",
+                "qué hacen", "que hacen",
+                "cuál es su función", "cual es su funcion",
+                "qué es coordenada urbana", "que es coordenada urbana",
+                "información de contacto", "informacion de contacto",
+                "dónde están ubicados", "donde estan ubicados",
+                "servicios", "qué servicios ofrecen"
+            ]
+            
+            respuesta_generada = False  # Bandera para rastrear si se generó alguna respuesta
+            
+            # --- LÓGICA SIMPLIFICADA: Intentar LIVO SQL PRIMERO ---
+            
+            # PASO 1: Intentar con LIVO SQL primero (prioridad máxima)
+            print(f"[DEBUG app.py] LIVO_SQL_AVAILABLE: {LIVO_SQL_AVAILABLE}")
+            print(f"[DEBUG app.py] hasattr(st.session_state, 'livo_sql'): {hasattr(st.session_state, 'livo_sql')}")
+            if hasattr(st.session_state, 'livo_sql'):
+                print(f"[DEBUG app.py] st.session_state.livo_sql: {st.session_state.livo_sql}")
+            print(f"[DEBUG app.py] st.session_state.livo_sql_initialized: {st.session_state.get('livo_sql_initialized', False)}")
+            
+            if LIVO_SQL_AVAILABLE and hasattr(st.session_state, 'livo_sql') and st.session_state.livo_sql:
+                with st.spinner("🚀 Consultando base de datos LIVO con SQL..."):
                     try:
+                        exito, respuesta, _ = st.session_state.livo_sql.consultar(prompt, obtener_respuesta_ia)
+                        if exito:
+                            st.markdown(f"🚀 **FUENTE: LIVO SQL (DuckDB)**\n\n{respuesta}")
+                            st.session_state.messages.append({"role": "assistant", "content": respuesta})
+                            guardar_historial()
+                            respuesta_generada = True
+                            st.stop()  # Detener flujo aquí si LIVO respondió exitosamente
+                        else:
+                            # Si es un error real del sistema LIVO (no una clasificación negativa)
+                            if "Consulta no clasificada como LIVO" not in respuesta:
+                                st.error(f"Error en sistema LIVO: {respuesta}")
+                                st.session_state.messages.append({"role": "assistant", "content": f"Ocurrió un error consultando LIVO: {respuesta}"})
+                                st.stop()
+                            # Si LIVO falló por no ser pregunta LIVO, continuar con razonamiento
+                            print(f"⚠️ LIVO SQL continuó al fallback: {respuesta}")
+                    except Exception as e:
+                        print(f"❌ Error crítico en consulta LIVO SQL: {e}")
+                        # Continuar al siguiente paso en caso de error crítico
+            
+            # PASO 2: Si LIVO no respondió, intentar sistema de razonamiento
+            if prompt.lower().strip() not in preguntas_simples and REASONING_AVAILABLE and hasattr(st.session_state, 'reasoning_system') and st.session_state.reasoning_system:
+                try:
+                    with st.spinner("🧠 Analizando estructura de la pregunta..."):
                         history = [msg['content'] for msg in st.session_state.messages if msg['role'] == 'user']
                         analysis_result = analyze_and_respond(
                             question=prompt, 
@@ -2175,59 +2176,59 @@ if prompt := st.chat_input("Escribe tu pregunta sobre CAMACOL o el sector constr
                             reasoning_system=st.session_state.reasoning_system, 
                             conversation_history=history
                         )
-                        if analysis_result and len(analysis_result) >= 2:
-                            needs_clarification = analysis_result[0]
-                            clarification_response = analysis_result[1]
-                            
-                            # Solo mostrar respuesta si NO necesita clarificación y es válida (no es None string o None object)
-                            if not needs_clarification and analysis_result[1] and str(analysis_result[1]) != "None":
-                                # Si el razonamiento devolvió una respuesta válida
-                                st.markdown(analysis_result[1])
-                                st.session_state.messages.append({"role": "assistant", "content": analysis_result[1]})
-                                guardar_historial()
-                                respuesta_generada = True
-                                st.stop()
-                            else:
-                                # Si necesita clarificación o devolvió None, continuar al LLM general
-                                print(f"⚠️ Razonamiento necesita clarificación o devolvió None, continuando al LLM general")
-                        else:
-                            print(f"⚠️ Sistema de razonamiento devolvió None o inválido, continuando al LLM general")
-                    except Exception as e:
-                        print(f"⚠️ Error en sistema de razonamiento: {e}, continuando al LLM general")
-                
-                # PASO 3: Fallback a RAG si LIVO falló
-                if RAG_AVAILABLE and hasattr(st.session_state, 'rag_system') and st.session_state.rag_system:
-                    print("⚠️ LIVO SQL falló, intentando con RAG...")
-                    with st.spinner("🔍 Buscando en documentos..."):
-                        exito_rag, respuesta_rag = procesar_consulta_rag(prompt)
-                        if exito_rag:
-                            st.markdown(respuesta_rag)
-                            st.session_state.messages.append({"role": "assistant", "content": respuesta_rag})
+                    if analysis_result and len(analysis_result) >= 2:
+                        needs_clarification = analysis_result[0]
+                        clarification_response = analysis_result[1]
+                        
+                        # Solo mostrar respuesta si necesita clarificación (needs_clarification es True) y es válida
+                        if needs_clarification and analysis_result[1] and str(analysis_result[1]) != "None":
+                            st.markdown(analysis_result[1])
+                            st.session_state.messages.append({"role": "assistant", "content": analysis_result[1]})
                             guardar_historial()
                             respuesta_generada = True
                             st.stop()
-                
-                # PASO 4: Fallback a LLM general si todo falló
-                if not respuesta_generada:
-                    print("🤖 Fallback a LLM general...")
-                    prompt_llm = f"""Eres un asistente experto de CAMACOL y el sector constructor en Colombia. Responde la siguiente pregunta de forma clara, concisa e informativa.
+                        else:
+                            # Si no necesita clarificación (la pregunta está completa), continuar al LLM/RAG general
+                            print(f"ℹ️ Pregunta completa. Continuando al fallback de datos o general...")
+                    else:
+                        print(f"⚠️ Sistema de razonamiento devolvió None o inválido, continuando al LLM general")
+                except Exception as e:
+                    print(f"⚠️ Error en sistema de razonamiento: {e}, continuando al LLM general")
+            
+            # PASO 3: Fallback a RAG si LIVO falló
+            if RAG_AVAILABLE and hasattr(st.session_state, 'rag_system') and st.session_state.rag_system:
+                print("⚠️ LIVO SQL falló, intentando con RAG...")
+                with st.spinner("🔍 Buscando en documentos..."):
+                    exito_rag, respuesta_rag = procesar_consulta_rag(prompt)
+                    if exito_rag:
+                        st.markdown(respuesta_rag)
+                        st.session_state.messages.append({"role": "assistant", "content": respuesta_rag})
+                        guardar_historial()
+                        respuesta_generada = True
+                        st.stop()
+            
+            # PASO 4: Fallback a LLM general si todo falló
+            if not respuesta_generada:
+                print("🤖 Fallback a LLM general...")
+                prompt_llm = f"""Eres un asistente experto de CAMACOL y el sector constructor en Colombia. Responde la siguiente pregunta de forma clara, concisa e informativa.
 
 Pregunta: {prompt}
 
 Respuesta:"""
+                with st.spinner("🤖 Generando respuesta..."):
                     respuesta_llm, proveedor = obtener_respuesta_ia(prompt_llm)
-                    if respuesta_llm:
-                        st.markdown(f"🤖 **Respuesta General (IA)**\n\n{respuesta_llm}\n\n_Generado por: {proveedor}_")
-                        st.session_state.messages.append({"role": "assistant", "content": respuesta_llm})
-                        guardar_historial()
-                        respuesta_generada = True
-                    else:
-                        st.error("❌ No se pudo procesar la consulta con ningún sistema.")
-                    
-            except Exception as e:
-                error_msg = f"Lo siento, ocurrió un error al procesar tu solicitud: {str(e)}"
-                st.error(error_msg)
-                st.session_state.messages.append({"role": "assistant", "content": error_msg})
+                if respuesta_llm:
+                    st.markdown(f"🤖 **Respuesta General (IA)**\n\n{respuesta_llm}\n\n_Generado por: {proveedor}_")
+                    st.session_state.messages.append({"role": "assistant", "content": respuesta_llm})
+                    guardar_historial()
+                    respuesta_generada = True
+                else:
+                    st.error("❌ No se pudo procesar la consulta con ningún sistema.")
+                
+        except Exception as e:
+            error_msg = f"Lo siento, ocurrió un error al procesar tu solicitud: {str(e)}"
+            st.error(error_msg)
+            st.session_state.messages.append({"role": "assistant", "content": error_msg})
 
 # Footer
 st.markdown("---")
