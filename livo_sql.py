@@ -2895,6 +2895,9 @@ REGLAS CRÍTICAS:
    - El campo `cuenta` es de importancia crítica y define la métrica transaccional. Sus valores válidos son EXACTAMENTE: 'Ventas', 'Iniciaciones', 'Culminadas', 'Entregadas', 'Oferta', 'Renuncias', 'Lanzamientos', 'Saldo que inicia', 'Paralizado'.
    - Si el usuario pide "Entregadas", "Ventas", "Iniciaciones", "Culminadas", "Oferta", "Lanzamientos", "Renuncias", "Saldo que inicia" o "Paralizado", utiliza SIEMPRE `cuenta = 'Entregadas'`, `cuenta = 'Ventas'`, etc.
    - NUNCA filtres por `estado = 'Entregadas'` o `estado = 'Ventas'`. El campo `estado` es para el estado físico de la obra ('Construcción', 'Preventa', 'TVE', 'TE', 'Cancelado', 'Paralizado', 'Proyectado', 'Rediseñado').
+1c. RANKINGS Y AGRUPACIONES (CONSTRUCTORAS / PROYECTOS):
+   - Si la pregunta pide un ranking, top o "principales" de "constructores", "constructoras", "empresas", "firmas", "compañías" o "proyectos", **SIEMPRE** debes seleccionar la columna `compania_constructora` (o `nombre_proyecto` según sea el caso), calcular la agregación correspondiente (ej: `SUM(unidades) AS total`), agrupar utilizando `GROUP BY compania_constructora` (o `GROUP BY nombre_proyecto`), ordenar de forma descendente (`ORDER BY total DESC`), y limitar la cantidad de resultados (`LIMIT N`).
+   - NUNCA devuelvas una agregación global (como un simple `SELECT SUM(unidades) FROM livo...` sin columnas ni cláusula GROUP BY) si el usuario solicita un ranking por constructores o proyectos. Es indispensable incluir la columna y la agrupación.
 2. CAMPOS CATEGÓRICOS: Usa EXACTAMENTE los valores listados (respeta mayúsculas/minúsculas).
 3. FILTROS DE TEXTO: Usa `UPPER(columna) LIKE UPPER('%valor%')` para búsquedas flexibles.
 4. CAMPOS NUMÉRICOS: Usa operadores `=`, `>`, `<`, `>=`, `<=` (NUNCA `LIKE`).
