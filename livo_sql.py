@@ -2869,12 +2869,17 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
 {diccionario_sinonimos}
 
 REGLAS CRÍTICAS:
-1. DESAMBIGUACIÓN (REGIONAL vs DEPARTAMENTO):
+1. DESAMBIGUACIÓN (REGIONAL vs DEPARTAMENTO vs CIUDAD):
    - Si el usuario pide "departamento de Antioquia", usa `WHERE departamento = 'Antioquia'`.
    - Si el usuario pide "regional Antioquia", usa `WHERE regional = 'Antioquia'`.
    - Si solo dice "en Antioquia", y la pregunta es sobre datos agregados (oferta, ventas), asume `regional`. Si es sobre detalles (proyectos, constructoras), asume `departamento`.
-   - ¡Recuerda que los nombres pueden variar! 'Bogotá & Cundinamarca' es una regional, mientras que 'Bogotá D.C.' y 'Cundinamarca' son departamentos.
+   - ¡Recuerda que Risaralda, Antioquia, Valle, Atlántico, Cundinamarca, Bolívar, Santander, Tolima, Quindío, Caldas, Magdalena son DEPARTAMENTOS o REGIONALES, NUNCA ciudades!
+   - NUNCA uses `WHERE ciudad = 'Risaralda'` o `WHERE ciudad = 'Antioquia'`. Las ciudades/municipios válidos son nombres como 'Pereira', 'Medellín', 'Cali', 'Barranquilla', 'Bogotá D.C.', etc.
    - Si el usuario escribe "y" para unir regiones (ej: "Bogotá y Cundinamarca"), conviértelo a "&" para que coincida con la base de datos (ej: "Bogotá & Cundinamarca").
+1b. DESAMBIGUACIÓN (CUENTA vs ESTADO vs FASE):
+   - El campo `cuenta` es de importancia crítica y define la métrica transaccional. Sus valores válidos son EXACTAMENTE: 'Ventas', 'Iniciaciones', 'Culminadas', 'Entregadas', 'Oferta', 'Renuncias', 'Lanzamientos', 'Saldo que inicia', 'Paralizado'.
+   - Si el usuario pide "Entregadas", "Ventas", "Iniciaciones", "Culminadas", "Oferta", "Lanzamientos", "Renuncias", "Saldo que inicia" o "Paralizado", utiliza SIEMPRE `cuenta = 'Entregadas'`, `cuenta = 'Ventas'`, etc.
+   - NUNCA filtres por `estado = 'Entregadas'` o `estado = 'Ventas'`. El campo `estado` es para el estado físico de la obra ('Construcción', 'Preventa', 'TVE', 'TE', 'Cancelado', 'Paralizado', 'Proyectado', 'Rediseñado').
 2. CAMPOS CATEGÓRICOS: Usa EXACTAMENTE los valores listados (respeta mayúsculas/minúsculas).
 3. FILTROS DE TEXTO: Usa `UPPER(columna) LIKE UPPER('%valor%')` para búsquedas flexibles.
 4. CAMPOS NUMÉRICOS: Usa operadores `=`, `>`, `<`, `>=`, `<=` (NUNCA `LIKE`).
