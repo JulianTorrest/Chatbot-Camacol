@@ -819,6 +819,16 @@ RECOMENDACIÓN CRÍTICA:
         if not result:
             return f"No se encontraron resultados para la consulta. SQL: {sql}"
 
+        # Verificar si todos los valores de la fila única son None (ej: SUM o AVG sobre consultas sin filas coincidentes)
+        if len(result) == 1 and all(v is None or str(v).strip().lower() in ['none', 'null', 'nan'] for v in result[0]):
+            return (
+                "⚠️ **Sin registros disponibles:** No se encontraron transacciones en la base de datos para esta combinación de filtros (región, mes y cuenta de obra).\n\n"
+                "💡 **Nota metodológica:** Es muy común que para ciertos departamentos con menor volumen de actividad edificadora "
+                "(como el Meta, Boyacá, Sucre, Córdoba, etc.) en un mes específico (ej: abril 2026), no se hayan registrado movimientos "
+                "de una cuenta de obra en particular (como **Lanzamientos** o **Iniciaciones**). Intenta consultar con un acumulado "
+                "más amplio (ej: *'en los últimos 12 meses'*) o en un departamento de mayor volumen."
+            )
+
         # Una fila, una o dos columnas (caso típico de SUM o AVG, o comparación anual)
         if len(result) == 1 and len(columns) in [1, 2]:
             # Formatear la respuesta de una o dos columnas
