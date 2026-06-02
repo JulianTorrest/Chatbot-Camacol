@@ -967,9 +967,9 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "MIN"
         elif re.search(r'\b(promedio|media|avg|average)\b', temp_text_for_avg):
             op_funcion = "AVG"
-        elif any(x in temp_text_for_sum for x in ['totalidad', 'total', 'suma', 'sumatoria', 'numero', 'número']):
+        elif any(x in temp_text_for_sum for x in ['totalidad', 'total', 'suma', 'sumatoria', 'numero', 'número', 'cantidad']):
             op_funcion = "SUM"
-        elif any(x in texto for x in ['conteo', 'conteo de', 'cantidad']):
+        elif any(x in texto for x in ['conteo', 'conteo de']):
             op_funcion = "COUNT"
         
         # Detección de métrica DESPUÉS de operación
