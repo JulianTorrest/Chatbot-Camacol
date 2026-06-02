@@ -831,7 +831,16 @@ RECOMENDACIÓN CRÍTICA:
                 is_m2_monetary = ("m2" in col_name.lower() or "mc" in col_name.lower()) and ("precio" in col_name.lower() or "valor" in col_name.lower() or "costo" in col_name.lower())
                 is_monetary = ("valor" in col_name.lower() or "precio" in col_name.lower() or "costo" in col_name.lower()) and not is_m2_monetary
                 
-                if isinstance(valor_celda, (int, float)):
+                if valor_celda is None or str(valor_celda).strip().lower() in ['none', 'null', 'nan']:
+                    if is_monetary or is_m2_monetary:
+                        respuesta_formateada.append(
+                            f"**{nombre_columna_limpio}:** No se registran montos económicos (el valor es nulo o no existen registros para esta combinación de filtros).\n\n"
+                            f"💡 **Nota metodológica:** Algunas cuentas como **Entregadas**, **Culminadas** o **Iniciaciones** "
+                            f"registran principalmente volúmenes físicos de viviendas (**unidades**). Te sugerimos consultar por el **número de unidades** para esta misma selección (ej: *'Calcula la cantidad de unidades para Entregadas en Risaralda...'*)."
+                        )
+                    else:
+                        respuesta_formateada.append(f"**{nombre_columna_limpio}:** None")
+                elif isinstance(valor_celda, (int, float)):
                     if is_m2_monetary:
                         pesos_enteros = valor_celda * 1000
                         millones_pesos = valor_celda / 1000.0
@@ -2648,11 +2657,17 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
             'diferencia', 'cual es la funcion', 'cual es la función', 'para que sirve', 'para qué sirve',
             'como solicitar', 'cómo solicitar', 'como postularse', 'cómo postularse', 'explicar', 'explicame',
             'camacol', 'coordenada urbana', 'mi casa ya', 'subsidio', 'casa', 'vivienda de interes',
-            'vivienda de interes social', 'vivienda de interes prioritario', 'vis', 'vip',
+            'vivienda de interes social', 'vivienda de interes prioritario',
             'ministerio de vivienda', 'ley de vivienda', 'programa', 'fondo nacional del ahorro'
         ]
-        if any(kw in texto for kw in conceptos_keywords):
-            return False
+        # Evitar coincidencias de subcadena falsas (ej: "casa" en "Casanare" o "Boyacá_Casanare", "vis" en "division")
+        for kw in conceptos_keywords:
+            if len(kw) <= 5 or kw in ['subsidio', 'programa', 'explicar', 'diferencia']:
+                if re.search(r'\b' + re.escape(kw) + r'\b', texto):
+                    return False
+            else:
+                if kw in texto:
+                    return False
 
         # 1. Palabras clave de ALTA CONFIANZA (específicas de LIVO/Construcción)
         alta_confianza = [
