@@ -1713,7 +1713,7 @@ with st.sidebar:
         st.rerun()
 
 # Área principal
-st.title("🏭 Chatbot CAMACOL")
+st.title(" Chatbot CAMACOL")
 st.markdown("**Tu asistente virtual para información sobre construcción en Colombia**")
 
 # Selector de tema en acción
