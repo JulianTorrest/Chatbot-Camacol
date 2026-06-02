@@ -909,7 +909,7 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "COUNT"
         
         # Detección de métrica DESPUÉS de operación
-        # Reglas claras: cantidad→unidades, tamaño→area, precio→valor
+        # Reglas claras: cantidad→unidades, tamaño→area, precio/costo/valor→valor
         col_metrica = "unidades"  # Por defecto
         
         if 'precio_mc_promedio' in texto:
@@ -920,7 +920,7 @@ RECOMENDACIÓN CRÍTICA:
             col_metrica = "area"
         elif any(x in texto for x in ['numero de unidades', 'número de unidades', 'numero de unidades', 'cantidad de unidades', 'total de unidades', 'total de viviendas', 'viviendas', 'cantidad']):
             col_metrica = "unidades"
-        elif any(x in texto for x in ['valor', 'precio', 'pesos', 'monetario', 'costo', 'dinero', 'plata', 'monto']):
+        elif any(x in texto for x in ['valor', 'precio', 'costo', 'pesos', 'monetario', 'dinero', 'plata', 'monto']):
             col_metrica = "valor"
         elif "proyecto" in texto:
             col_metrica = "identificador"
@@ -1178,7 +1178,62 @@ RECOMENDACIÓN CRÍTICA:
             except Exception:
                 pass
 
-        # 0b) Top Constructoras (Ranking) - PRIORIDAD ALTA
+        # 0b) Precio/Costo/Valor Promedio de Vivienda (PRIORIDAD ALTA)
+        # Fórmula según especificación: (Suma de valor / 1000) / Suma de unidades = millones de pesos
+        # Donde Suma de valor está expresado en miles
+        # Tamaño promedio: Suma de área / Suma de unidades = m²
+        # Detecta: precio promedio, costo promedio, valor promedio, precio medio, costo medio, valor medio
+        if (("precio promedio" in texto or "precio medio" in texto or 
+             "costo promedio" in texto or "costo medio" in texto or
+             "valor promedio" in texto or "valor medio" in texto) and "vivienda" in texto):
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar fecha específica (ej: abril 2026 -> 20260401)
+            fecha_filtro = ""
+            if anio_match and mes_nombre_detectado:
+                mes_map = {'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+                          'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12',
+                          'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04', 'mayo': '05', 'junio': '06',
+                          'julio': '07', 'agosto': '08', 'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'}
+                mes_num = mes_map.get(mes_nombre_detectado, '01')
+                anio_num = anio_match.group(1)
+                fecha_especifica = f"{anio_num}{mes_num}01"
+                fecha_filtro = f" AND fecha = {fecha_especifica}"
+            elif filtro_temporal:
+                # Usar el filtro temporal existente si no hay fecha específica
+                fecha_filtro = filtro_temporal
+            
+            # SQL para calcular precio promedio y tamaño promedio
+            # Fórmula: (suma_valor / 1000) / suma_unidades = millones de pesos por unidad
+            # Nota: valor en LIVO está en miles, por lo que (valor / 1000) = valor en millones
+            sql = f"""
+            WITH datos_ventas AS (
+                SELECT 
+                    COALESCE(SUM(valor), 0) as suma_valor,
+                    COALESCE(SUM(unidades), 0) as suma_unidades,
+                    COALESCE(SUM(area), 0) as suma_area
+                FROM livo
+                WHERE cuenta = 'Ventas'
+                  AND destino_etapa = 'Venta'
+                  AND {region_cond}
+                  {fecha_filtro}
+            )
+            SELECT 
+                ROUND((suma_valor / 1000.0) / NULLIF(suma_unidades, 0), 2) as "Precio Promedio (millones de pesos)",
+                ROUND(suma_area / NULLIF(suma_unidades, 0), 2) as "Tamaño Promedio (m²)",
+                suma_valor as "Suma de Valor (en miles)",
+                suma_unidades as "Suma de Unidades",
+                suma_area as "Suma de Área"
+            FROM datos_ventas
+            """
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Precio Promedio Vivienda): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 0c) Top Constructoras (Ranking) - PRIORIDAD ALTA
         if ("top" in texto or "ranking" in texto or "mejores" in texto) and ("constructora" in texto or "empresa" in texto):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
@@ -2561,7 +2616,8 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
             'desistimientos', 'paralizado', 'paralizada', 'paralizando', 'culminadas', 'culminada',
             'entregadas', 'entregas', 'saldo que inicia', 'saldo inicial', 'precio_mc_promedio',
             'compania_constructora', 'compañia_constructora', 'obras detenidas', 'suspendidas',
-            'desistido', 'desistimiento', 'apartamento', 'apartamentos', 'casa', 'casas'
+            'desistido', 'desistimiento', 'apartamento', 'apartamentos', 'casa', 'casas',
+            'costo', 'precio', 'valor'  # Sinónimos para métricas monetarias
         ]
         
         for kw in alta_confianza:
