@@ -934,6 +934,20 @@ RECOMENDACIÓN CRÍTICA:
         except Exception:
             pass
 
+        # --- DETECCIÓN DE PARÁMETROS PARA MEDIA MÓVIL (N PERIODOS) ---
+        n_periodos_ma = 3  # Valor por defecto
+        if any(x in texto for x in ['media movil', 'promedio movil', 'suavizado', 'moving average']):
+            ma_match = re.search(r"(?:media|promedio)\s+movil\s+(?:de\s+)?(\d+)\s+meses?", texto)
+            if ma_match:
+                n_periodos_ma = int(ma_match.group(1))
+            else:
+                numeros_txt = {"tres": 3, "cinco": 5, "seis": 6, "diez": 10, "doce": 12, "dieciocho": 18, "veinticuatro": 24}
+                for palabra, valor in numeros_txt.items():
+                    if f"movil {palabra} meses" in texto or f"movil de {palabra} meses" in texto:
+                        n_periodos_ma = valor
+                        break
+
+        group_by_cols = []
         # Limpieza de frases de métricas/nombres para evitar falsos positivos en detección de operaciones
         temp_text_for_avg = texto.replace("precio_mc_promedio", "").replace("precio promedio m2", "").replace("precio promedio", "")
         
@@ -947,8 +961,26 @@ RECOMENDACIÓN CRÍTICA:
         
         if any(x in texto for x in ['ranking', 'top', 'principales']):
             op_funcion = "RANKING"
-        elif any(x in texto for x in ['agrupado por', 'agrupar por', 'agrupación por', 'agrupacion por']):
+        elif any(x in texto for x in ['agrupado por', 'agrupar por', 'agrupación por', 'agrupacion por', ' por ', ' segun ', ' según ', 'distribucion', 'distribución', ' cada ']):
             op_funcion = "GROUP_BY"
+        elif any(x in texto for x in ['acumulado del año', 'acumulado anual', 'ytd', 'total año corrido']):
+            op_funcion = "YTD"
+        elif any(x in texto for x in ['media movil', 'promedio movil', 'suavizado', 'moving average', 'ma']):
+            op_funcion = "MOVING_AVG"
+        elif any(x in texto for x in ['pronostico', 'proyeccion', 'prediccion', 'estimar', 'forecast', 'arima', 'arma', 'tendencia futura']):
+            op_funcion = "FORECAST"
+        elif any(x in texto for x in ['absorcion', 'tasa de absorcion', 'velocidad de venta']):
+            op_funcion = "ABSORCION"
+        elif any(x in texto for x in ['desistimiento', 'renuncia', 'tasa de cancelacion', 'churn']):
+            op_funcion = "DESISTIMIENTO"
+        elif any(x in texto for x in ['percentil', 'quantile', 'cuantil', 'distribucion de precios']):
+            op_funcion = "PERCENTILE"
+        elif any(x in texto for x in ['concentracion', 'concentración', 'hhi', 'monopolio', 'dominio de mercado']):
+            op_funcion = "HHI"
+        elif any(x in texto for x in ['segmentar por area', 'segmentar por área', 'tamaños de vivienda', 'buckets de area', 'distribucion por area']):
+            op_funcion = "BUCKET_AREA"
+        elif any(x in texto for x in ['segmentar por precio', 'segmentar por valor', 'rangos smlv', 'buckets de precio']):
+            op_funcion = "BUCKET_SMLV"
         elif any(x in texto for x in ['promedio ponderado', 'promedio_ponderado']):
             op_funcion = "PROMEDIO_PONDERADO"
         elif any(x in texto for x in ['conteo de valores unicos', 'conteo de valores únicos', 'distinct_count']):
@@ -965,10 +997,20 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "MAX"
         elif any(re.search(r'\b' + re.escape(x) + r'\b', texto) if len(x) <= 3 else x in texto for x in ['minimo', 'mínimo', 'min', 'más bajo', 'menor']):
             op_funcion = "MIN"
+        elif any(x in texto for x in ['diferencia de meses', 'cuantos meses', 'meses hay entre', 'meses de diferencia']):
+            op_funcion = "MONTH_DIFF"
         elif re.search(r'\b(promedio|media|avg|average)\b', temp_text_for_avg):
             op_funcion = "AVG"
-        elif any(x in temp_text_for_sum for x in ['totalidad', 'total', 'suma', 'sumatoria', 'numero', 'número', 'cantidad']):
+        elif any(x in temp_text_for_sum for x in ['totalidad', 'total', 'suma', 'sumatoria', 'numero', 'número', 'cantidad', 'resultado', 'valores', 'unidades']):
             op_funcion = "SUM"
+        elif any(x in texto for x in ['crecimiento', 'variacion', 'variación', 'cambio', 'diferencia', 'frente a', 'comparado con']):
+            op_funcion = "VARIACION"
+        elif any(x in texto for x in ['clustering', 'cluster', 'clúster', 'similitud', 'agrupar proyectos']):
+            op_funcion = "CLUSTERING"
+        elif any(x in texto for x in ['clasificacion', 'clasificación', 'categorizar', 'perfilado']):
+            op_funcion = "CLASSIFICATION"
+        elif any(x in texto for x in ['asociacion', 'asociación', 'relacion entre', 'vinculo']):
+            op_funcion = "ASSOCIATION"
         elif any(x in texto for x in ['conteo', 'conteo de']):
             op_funcion = "COUNT"
         
@@ -998,6 +1040,12 @@ RECOMENDACIÓN CRÍTICA:
         if op_funcion == "COUNT":
             metrica_sql = "COUNT(*)"
             alias_sql = "total_registros"
+        elif op_funcion == "DESISTIMIENTO":
+            metrica_sql = "SUM(CASE WHEN cuenta='Renuncias' THEN unidades ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN cuenta IN ('Ventas', 'Renuncias') THEN unidades ELSE 0 END), 0)"
+            alias_sql = "tasa_desistimiento_pct"
+        elif op_funcion == "PERCENTILE":
+            metrica_sql = f"approx_quantile({col_metrica}, 0.5)" # Por defecto mediana
+            alias_sql = f"mediana_{col_metrica}"
         elif op_funcion == "PROMEDIO_PONDERADO":
             metrica_sql = "SUM(valor * unidades) / SUM(unidades)"
             alias_sql = "promedio_ponderado"
@@ -1013,8 +1061,40 @@ RECOMENDACIÓN CRÍTICA:
         elif col_metrica == "identificador":
             metrica_sql = "COUNT(DISTINCT identificador)"
             alias_sql = "total_proyectos"
-        elif op_funcion in ["SUM", "AVG"]:
-            metrica_sql = f"COALESCE({op_funcion}({col_metrica}), 0)"
+        elif op_funcion == "MONTH_DIFF":
+            metrica_sql = "date_diff('month', MIN(fecha_date), MAX(fecha_date))"
+            alias_sql = "meses_de_diferencia"
+        elif op_funcion == "YTD":
+            metrica_sql = "SUM(unidades)"
+            alias_sql = "acumulado_ytd"
+        elif op_funcion == "MOVING_AVG":
+            # Ventana dinámica: N periodos (N-1 precedentes + actual)
+            preceding = max(0, n_periodos_ma - 1)
+            metrica_sql = f"AVG(SUM({col_metrica})) OVER (ORDER BY fecha_date ROWS BETWEEN {preceding} PRECEDING AND CURRENT ROW)"
+            alias_sql = f"media_movil_{n_periodos_ma}m_{col_metrica}"
+        elif op_funcion == "ABSORCION":
+            # Ratio: Ventas / (Oferta + Ventas) * 100
+            metrica_sql = "SUM(CASE WHEN cuenta='Ventas' THEN unidades ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN cuenta IN ('Ventas', 'Oferta') THEN unidades ELSE 0 END), 0)"
+            alias_sql = "tasa_absorcion_pct"
+        elif op_funcion == "FORECAST":
+            metrica_sql = f"SUM({col_metrica})" # Se procesa en la regla 0h
+            alias_sql = "valor_historico"
+        elif op_funcion == "BUCKET_AREA":
+            metrica_sql = "SUM(unidades)"
+            alias_sql = "unidades_por_segmento"
+        elif op_funcion == "BUCKET_SMLV":
+            # Para este cálculo usamos una lógica especial en la regla 0k
+            metrica_sql = "SUM(unidades)"
+            alias_sql = "unidades_por_rango_smlv"
+        elif op_funcion == "HHI":
+            metrica_sql = "SUM(unidades)" # Base para el cálculo en el CTE
+            alias_sql = "unidades_para_hhi"
+        elif op_funcion == "PROMEDIO_PONDERADO":
+            metrica_sql = "SUM(valor * unidades) / SUM(unidades)"
+            alias_sql = "promedio_ponderado"
+        elif op_funcion in ["SUM", "AVG", "VARIACION"]: # Para VARIACION usamos SUM como base para comparar volúmenes
+            func_base = "SUM" if op_funcion == "VARIACION" else op_funcion
+            metrica_sql = f"COALESCE({func_base}({col_metrica}), 0)"
             alias_sql = f"{col_metrica}_{op_funcion.lower()}"
         else:
             metrica_sql = f"{op_funcion}({col_metrica})"
@@ -1039,7 +1119,8 @@ RECOMENDACIÓN CRÍTICA:
             '201', '202', # Años 201x, 202x
             'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
             'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-            'mes', 'anio', 'ano', 'trimestre', 'semestre', 'ultimo', 'reciente', 'actual'
+            'mes', 'anio', 'ano', 'trimestre', 'semestre', 'ultimo', 'reciente', 'actual',
+            'doce', '12', 'seis', '6', 'diez', '10', 'dieciocho', '18', 'veinticuatro', '24'
         ]
         tiene_tiempo = any(k in texto for k in temporal_keywords)
 
@@ -1130,6 +1211,13 @@ RECOMENDACIÓN CRÍTICA:
                      filtro_temporal = f" AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = '{cuenta_detectada}')"
                  else:
                      filtro_temporal = " AND fecha = (SELECT MAX(fecha) FROM livo)"
+
+        # --- REGLA DE METADATA: CONSULTA DE COBERTURA / FECHA DE CORTE ---
+        # Responde directamente a preguntas sobre la vigencia de los datos
+        if any(x in texto for x in ['hasta que fecha', 'fecha de corte', 'periodo de informacion', 'ultimo mes disponible', 'fecha maxima', 'periodo de cobertura', 'fecha de los datos', 'actualizado a', 'que meses tienen datos']):
+             sql = "SELECT MAX(fecha) as \"Última Fecha de Corte\" FROM livo WHERE fecha IS NOT NULL"
+             print(f"[DEBUG LIVO reglas] SQL METADATA (Cobertura): {sql}")
+             return sql
 
         # Helper: obtener año de la pregunta (por ejemplo "2025")
         def _extraer_anio(texto_local: str) -> int:
@@ -1271,17 +1359,36 @@ RECOMENDACIÓN CRÍTICA:
                 # Usar el filtro temporal existente si no hay fecha específica
                 fecha_filtro = filtro_temporal
             
+            # Detectar cuenta para el cálculo de promedios (Prioridad: Lanzamientos, Oferta, etc.)
+            cuenta_calculo = 'Ventas'
+            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos', 'oferta nueva', 'levantamiento']):
+                cuenta_calculo = 'Lanzamientos'
+            elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']):
+                cuenta_calculo = 'Oferta'
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra', 'arranques']):
+                cuenta_calculo = 'Iniciaciones'
+            elif any(x in texto for x in ['entregada', 'entrega', 'finalizada', 'habitables']):
+                cuenta_calculo = 'Entregadas'
+            elif any(x in texto for x in ['culminada', 'culminacion', 'obra terminada', 'construccion completa']):
+                cuenta_calculo = 'Culminadas'
+            elif any(x in texto for x in ['paralizado', 'paralizada', 'obras detenidas', 'suspendida']):
+                cuenta_calculo = 'Paralizado'
+            elif any(x in texto for x in ['renuncia', 'desistimiento', 'cancelacion', 'negocio caido']):
+                cuenta_calculo = 'Renuncias'
+            elif any(x in texto for x in ['saldo que inicia', 'saldo inicial', 'inventario inicial']):
+                cuenta_calculo = 'Saldo que inicia'
+
             # SQL para calcular precio promedio y tamaño promedio
             # Fórmula: (suma_valor / 1000) / suma_unidades = millones de pesos por unidad
             # Nota: valor en LIVO está en miles, por lo que (valor / 1000) = valor en millones
             sql = f"""
-            WITH datos_ventas AS (
+            WITH datos_calculo AS (
                 SELECT 
                     COALESCE(SUM(valor), 0) as suma_valor,
                     COALESCE(SUM(unidades), 0) as suma_unidades,
                     COALESCE(SUM(area), 0) as suma_area
                 FROM livo
-                WHERE cuenta = 'Ventas'
+                WHERE cuenta = '{cuenta_calculo}'
                   AND destino_etapa = 'Venta'
                   AND {region_cond}
                   {fecha_filtro}
@@ -1292,7 +1399,7 @@ RECOMENDACIÓN CRÍTICA:
                 suma_valor as "Suma de Valor (en miles)",
                 suma_unidades as "Suma de Unidades",
                 suma_area as "Suma de Área"
-            FROM datos_ventas
+            FROM datos_calculo
             """
             try:
                 print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Precio Promedio Vivienda): {sql}")
@@ -1422,6 +1529,7 @@ RECOMENDACIÓN CRÍTICA:
             "unidades totales de vivienda" in texto
             and "vivienda de interes social" not in texto
             and "no vis" not in texto
+            and not any(x in texto for x in [' por ', ' cada ', ' segun ', ' según ', ' desglosado ', ' desglose '])
         ):
             region = self._extraer_region_general(texto)
             if region:
@@ -1563,8 +1671,260 @@ RECOMENDACIÓN CRÍTICA:
             except Exception:
                 pass
 
+        # 0e) Cálculo de HHI (Concentración de Mercado)
+        if op_funcion == "HHI":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar año si se especifica
+            anio_hhi = anio_match.group(1) if anio_match else "(SELECT MAX(CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER)) FROM livo)"
+            
+            sql = f"""
+            WITH participaciones AS (
+                SELECT 
+                    compania_constructora,
+                    SUM(unidades) * 100.0 / SUM(SUM(unidades)) OVER () as share
+                FROM livo
+                WHERE {region_cond}
+                  AND cuenta = 'Oferta' -- HHI se calcula sobre la oferta
+                  AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {anio_hhi}
+                  AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta' AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {anio_hhi})
+                GROUP BY compania_constructora
+            )
+            SELECT ROUND(SUM(share * share), 2) as indice_hhi FROM participaciones
+            """
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (HHI): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 0f) Cálculo de YTD (Year-to-Date / Acumulado Anual)
+        if op_funcion == "YTD":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar año (por defecto el último año disponible)
+            anio_ytd = anio_match.group(1) if anio_match else "(SELECT MAX(CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER)) FROM livo)"
+            
+            # Detectar cuenta (Ventas por defecto)
+            cuenta_calculo = 'Ventas'
+            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): cuenta_calculo = 'Lanzamientos'
+            elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): cuenta_calculo = 'Oferta'
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): cuenta_calculo = 'Iniciaciones'
+            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): cuenta_calculo = 'Entregadas'
+            
+            sql = f"""
+            SELECT 
+                CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) as anio,
+                SUM(unidades) as total_unidades_ytd
+            FROM livo
+            WHERE cuenta = '{cuenta_calculo}'
+              AND {region_cond}
+              AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {anio_ytd}
+              AND CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER) <= (SELECT MAX(CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER)) FROM livo WHERE CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {anio_ytd})
+              AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+            GROUP BY anio
+            """
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (YTD): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 0g) Bucketing Dinámico de Áreas
+        if op_funcion == "BUCKET_AREA":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            sql = f"""
+            SELECT 
+                CASE 
+                    WHEN area < 50 THEN '1. Pequeño (<50m2)'
+                    WHEN area BETWEEN 50 AND 80 THEN '2. Mediano (50-80m2)'
+                    WHEN area BETWEEN 80 AND 120 THEN '3. Grande (80-120m2)'
+                    ELSE '4. Extra Grande (>120m2)'
+                END as segmento_area,
+                SUM(unidades) as unidades,
+                ROUND(AVG(precio_mc_promedio), 2) as precio_m2_promedio
+            FROM livo
+            WHERE {region_cond}
+              AND cuenta = 'Oferta'
+              AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
+            GROUP BY segmento_area
+            ORDER BY segmento_area
+            """
+            print(f"[DEBUG LIVO reglas] SQL BUCKET AREA: {sql}")
+            return sql
+
+        # 0h) Media Móvil (Series de tiempo suavizadas)
+        if op_funcion == "MOVING_AVG":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            # Asegurar que el intervalo de datos sea suficiente para el cálculo solicitado
+            interval_months = max(12, n_periodos_ma + 6)
+            sql = f"""
+            SELECT 
+                DATE_TRUNC('month', fecha_date) as mes,
+                SUM({col_metrica}) as valor_mensual,
+                ROUND({metrica_sql}, 2) as "{alias_sql}"
+            FROM livo
+            WHERE {region_cond} AND cuenta = 'Ventas'
+              AND fecha_date >= (SELECT MAX(fecha_date) - INTERVAL '{interval_months} months' FROM livo)
+            GROUP BY mes, fecha_date
+            ORDER BY mes
+            """
+            return sql
+
+        # 0i) Pronóstico mediante Regresión Lineal Simple
+        if op_funcion == "FORECAST":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            # Convertimos la fecha a un número serial para la regresión
+            sql = f"""
+            WITH serie AS (
+                SELECT 
+                    epoch(DATE_TRUNC('month', fecha_date)) as x,
+                    SUM({col_metrica}) as y
+                FROM livo
+                WHERE {region_cond} AND cuenta = 'Ventas'
+                  AND fecha_date >= (SELECT MAX(fecha_date) - INTERVAL '12 months' FROM livo)
+                GROUP BY x
+            ),
+            modelo AS (
+                SELECT 
+                    regr_slope(y, x) as pendiente,
+                    regr_intercept(y, x) as intercepto
+                FROM serie
+            ),
+            ultimo_mes AS (SELECT MAX(x) + 2592000 as proximo_x FROM serie)
+            SELECT 
+                (SELECT ROUND(y, 0) FROM serie WHERE x = (SELECT MAX(x) FROM serie)) as "Último Dato Real",
+                ROUND(intercepto + pendiente * proximo_x, 0) as "Pronóstico Próximo Mes",
+                CASE WHEN pendiente > 0 THEN 'Creciente' ELSE 'Decreciente' END as "Tendencia"
+            FROM modelo, ultimo_mes
+            """
+            return sql
+
+        # 0j) Tasa de Absorción Mensual
+        if op_funcion == "ABSORCION":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            sql = f"""
+            SELECT 
+                DATE_TRUNC('month', fecha_date) as mes,
+                SUM(CASE WHEN cuenta='Ventas' THEN unidades ELSE 0 END) as ventas,
+                SUM(CASE WHEN cuenta='Oferta' THEN unidades ELSE 0 END) as inventario_final,
+                ROUND({metrica_sql}, 2) as "{alias_sql}"
+            FROM livo
+            WHERE {region_cond}
+              AND fecha_date >= (SELECT MAX(fecha_date) - INTERVAL '6 months' FROM livo)
+            GROUP BY mes, fecha_date
+            ORDER BY mes
+            """
+            return sql
+
+        # 0k) Segmentación por Rangos SMLV (Bucketing de Precios)
+        if op_funcion == "BUCKET_SMLV":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            # Aproximación de rangos SMLV basada en el salario 2025 (~1.42M)
+            sql = f"""
+            SELECT 
+                CASE 
+                    WHEN valor < 128115 THEN '1. VIP (<90 SMLV)'
+                    WHEN valor BETWEEN 128115 AND 192173 THEN '2. VIS (90-135 SMLV)'
+                    WHEN valor BETWEEN 192173 AND 334522 THEN '3. Rango 135-235 SMLV'
+                    WHEN valor BETWEEN 334522 AND 500000 THEN '4. Rango 235-350 SMLV'
+                    WHEN valor BETWEEN 500000 AND 711750 THEN '5. Rango 350-500 SMLV'
+                    ELSE '6. Segmento Alto (>500 SMLV)'
+                END as rango_smlv,
+                SUM(unidades) as unidades,
+                ROUND(SUM(valor) / NULLIF(SUM(unidades), 0), 0) as precio_promedio_unidad
+            FROM livo
+            WHERE {region_cond}
+              AND cuenta = 'Oferta'
+              AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
+            GROUP BY rango_smlv
+            ORDER BY rango_smlv
+            """
+            return sql
+
+        # 0l) Análisis de Percentiles Dinámicos
+        if op_funcion == "PERCENTILE":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            sql = f"""
+            SELECT 
+                '{region or 'Nacional'}' as ubicacion,
+                ROUND(approx_quantile({col_metrica}, 0.25), 2) as "Percentil 25 (Bajo)",
+                ROUND(approx_quantile({col_metrica}, 0.50), 2) as "Mediana (P50)",
+                ROUND(approx_quantile({col_metrica}, 0.75), 2) as "Percentil 75 (Alto)",
+                ROUND(AVG({col_metrica}), 2) as "Promedio Simple"
+            FROM livo
+            WHERE {region_cond}
+              AND cuenta = 'Oferta'
+              AND {col_metrica} > 0
+              AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
+            """
+            return sql
+
+        # 0m) Preparación de datos para Clustering (Segmentación de Proyectos)
+        if op_funcion == "CLUSTERING":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            sql = f"""
+            SELECT 
+                nombre_proyecto,
+                AVG(valor) as valor_promedio,
+                AVG(area) as area_promedio,
+                AVG(precio_mc_promedio) as precio_m2,
+                SUM(unidades) as total_unidades,
+                MAX(estrato) as estrato
+            FROM livo
+            WHERE {region_cond}
+              AND cuenta = 'Oferta'
+              AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
+            GROUP BY nombre_proyecto
+            HAVING AVG(valor) > 0
+            """
+            return sql
+
+        # 0n) Preparación de datos para Clasificación (Perfilado de Vivienda)
+        if op_funcion == "CLASSIFICATION":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            sql = f"""
+            SELECT 
+                tipo_vivienda,
+                estrato,
+                destino_etapa,
+                uso_etapa,
+                AVG(valor) as valor_medio,
+                AVG(area) as area_media,
+                COUNT(*) as frecuencia
+            FROM livo
+            WHERE {region_cond}
+            GROUP BY tipo_vivienda, estrato, destino_etapa, uso_etapa
+            """
+            return sql
+
+        # 0o) Preparación de datos para Reglas de Asociación (Co-ocurrencia)
+        if op_funcion == "ASSOCIATION":
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            sql = f"""
+            SELECT 
+                ciudad, zona, estrato, tipo_vivienda, 
+                COUNT(*) as conteo_asociacion
+            FROM livo
+            WHERE {region_cond}
+            GROUP BY ALL
+            ORDER BY conteo_asociacion DESC
+            """
+            return sql
+
         # 10) Ventas totales (Definición estricta: Cuenta=Ventas + Región + Tiempo, sin filtros extra)
-        if "ventas totales" in texto:
+        if "ventas totales" in texto and not any(x in texto for x in [' por ', ' cada ', ' segun ', ' según ', ' desglosado ', ' desglose ']):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
@@ -1581,8 +1941,67 @@ RECOMENDACIÓN CRÍTICA:
             except Exception:
                 pass
 
+        # 0d) Análisis de Variación / Crecimiento (Comparación entre periodos)
+        if op_funcion == "VARIACION":
+            anios = re.findall(r"(20[0-9]{2})", texto)
+            if len(anios) == 1:
+                anios.append(str(int(anios[0]) - 1)) # Si pide un solo año, comparar con el anterior
+            
+            # Buscar meses mencionados
+            meses_encontrados = []
+            for m_txt, m_num in meses_map_regex.items():
+                if re.search(r'\b' + re.escape(m_txt) + r'\b', texto):
+                    meses_encontrados.append((m_txt, m_num))
+            
+            # Detectar cuenta (Ventas por defecto)
+            cuenta_calculo = 'Ventas'
+            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): cuenta_calculo = 'Lanzamientos'
+            elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): cuenta_calculo = 'Oferta'
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): cuenta_calculo = 'Iniciaciones'
+            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): cuenta_calculo = 'Entregadas'
+            
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+
+            # Determinar periodos (Mes-Año vs Mes-Año o Año vs Año)
+            if len(anios) >= 2:
+                a1, a2 = anios[0], anios[1] # Ej: 2026, 2025
+                
+                # Caso A: Comparación de meses específicos
+                if len(meses_encontrados) >= 1:
+                    m1_num = meses_encontrados[0][1]
+                    m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
+                    m1_name = meses_encontrados[0][0].title()
+                    m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                    
+                    f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
+                    f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
+
+                    sql = f"""
+                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                    SELECT curr.val as "{m1_name} {a1}", prev.val as "{m2_name} {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                    """
+                
+                # Caso B: Comparación anual total
+                else:
+                    sql = f"""
+                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                    SELECT curr.val as "Año {a1}", prev.val as "Año {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                    """
+                
+                try:
+                    # Si es oferta, no comparar totales sumados del año sino el promedio o el último corte
+                    if cuenta_calculo == 'Oferta' and len(meses_encontrados) == 0:
+                        sql = sql.replace(metrica_sql, f"COALESCE(AVG({col_metrica}), 0)")
+
+                    print(f"[DEBUG LIVO reglas] SQL VARIACION: {sql}")
+                    return sql.strip()
+                except Exception: pass
+
         # 11) Oferta disponible/total (Definición estricta: Cuenta=Oferta + Región + Tiempo, sin filtros extra)
-        if "oferta disponible" in texto or "oferta total" in texto:
+        if ("oferta disponible" in texto or "oferta total" in texto) and not tiene_agrupacion:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
@@ -1651,13 +2070,32 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
-            # Usar último corte de oferta para precios actuales
-            final_temporal = " AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')"
+            # Detectar cuenta para el cálculo de precio m2 (Oferta por defecto para precio m2)
+            cuenta_m2 = 'Oferta'
+            if any(x in texto for x in ['venta', 'vendida', 'comercializada']):
+                cuenta_m2 = 'Ventas'
+            elif any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas']):
+                cuenta_m2 = 'Lanzamientos'
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']):
+                cuenta_m2 = 'Iniciaciones'
+            elif any(x in texto for x in ['entregada', 'entrega']):
+                cuenta_m2 = 'Entregadas'
+            elif any(x in texto for x in ['culminada', 'obra terminada']):
+                cuenta_m2 = 'Culminadas'
+            elif any(x in texto for x in ['paralizado', 'suspendida']):
+                cuenta_m2 = 'Paralizado'
+            elif any(x in texto for x in ['renuncia', 'desistimiento']):
+                cuenta_m2 = 'Renuncias'
+            elif any(x in texto for x in ['saldo que inicia', 'saldo inicial']):
+                cuenta_m2 = 'Saldo que inicia'
+
+            # Usar último corte de la cuenta seleccionada para precios actuales si no hay filtro temporal
+            final_temporal = filtro_temporal or f" AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = '{cuenta_m2}')"
             
             sql = (
                 f"SELECT AVG(precio_mc_promedio) AS {alias_sql} "
                 "FROM livo "
-                f"WHERE cuenta = 'Oferta' "
+                f"WHERE cuenta = '{cuenta_m2}' "
                 f"AND {region_cond} "
                 f"{final_temporal}"
             )
@@ -1929,31 +2367,32 @@ RECOMENDACIÓN CRÍTICA:
             filtros.append(f"estrato = {estrato_val}")
 
         # 11. Detección de columnas de agrupación (para GROUP_BY y RANKING)
-        if op_funcion in ["GROUP_BY", "RANKING"]:
+        tiene_agrupacion = any(x in texto for x in [' por ', ' segun ', ' según ', ' cada ', ' agrupado ', ' distribucion ', ' distribución ', ' desglosado ', ' desglose '])
+        if op_funcion in ["GROUP_BY", "RANKING"] or tiene_agrupacion:
             # Mapeo de términos de agrupación a columnas
             agrupacion_map = {
                 'modalidad': 'modalidad',
                 'sector': 'zona',
                 'zona': 'zona',
                 'distrito': 'zona',
-                'situación': 'estado',
                 'situacion': 'estado',
-                'clasificación': 'tipo_vivienda',
                 'clasificacion': 'tipo_vivienda',
                 'clase social': 'estrato',
-                'clase_social': 'estrato',
                 'nivel socioeconomico': 'estrato',
-                'nivel socioeconómico': 'estrato',
                 'estatus': 'estado',
                 'estado': 'estado',
                 'fase': 'fase',
                 'regional': 'regional',
+                'regionales': 'regional',
                 'departamento': 'departamento',
+                'departamentos': 'departamento',
                 'ciudad': 'ciudad',
-                'distrito': 'zona',
+                'ciudades': 'ciudad',
                 'estrato': 'estrato',
                 'tipo': 'tipo_vivienda',
-                'segmento': 'segmento_pre'
+                'tipos': 'tipo_vivienda',
+                'segmento': 'segmento_pre',
+                'segmentos': 'segmento_pre'
             }
             
             for key, col in agrupacion_map.items():
