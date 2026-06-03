@@ -590,11 +590,12 @@ class ReasoningSystem:
                 counter_questions.append("¿Qué métrica específica necesitas? (ej: unidades, valor, área).")
 
         # --- Lógica para 'operation' ---
-        if 'operation' in missing_elements:
-            if "comportamiento" in question:
-                counter_questions.append("¿Cómo te gustaría ver el 'comportamiento'? (ej: una evolución mensual, una comparación con el año anterior, un total acumulado).")
-            else:
-                counter_questions.append("¿Qué tipo de cálculo necesitas? (ej: un total, un promedio, un ranking).")
+        # NO preguntar por tipo de cálculo - asumir valor por defecto (SUM/total)
+        # if 'operation' in missing_elements:
+        #     if "comportamiento" in question:
+        #         counter_questions.append("¿Cómo te gustaría ver el 'comportamiento'? (ej: una evolución mensual, una comparación con el año anterior, un total acumulado).")
+        #     else:
+        #         counter_questions.append("¿Qué tipo de cálculo necesitas? (ej: un total, un promedio, un ranking).")
 
         # --- Lógica para 'location' ---
         # NO preguntar por ubicación - asumir nacional por defecto para preguntas LIVO
@@ -606,8 +607,9 @@ class ReasoningSystem:
             counter_questions.append("¿Para qué período de tiempo? (ej: para el año 2025, el último trimestre, o un mes específico).")
 
         # --- Lógica para 'housing_type' ---
-        if 'housing_type' in missing_elements:
-            counter_questions.append("¿Te interesa algún tipo de vivienda en particular? (ej: VIS, No VIS, o todas).")
+        # NO preguntar por tipo de vivienda - asumir todas por defecto
+        # if 'housing_type' in missing_elements:
+        #     counter_questions.append("¿Te interesa algún tipo de vivienda en particular? (ej: VIS, No VIS, o todas).")
 
         # --- Lógica para 'company_identifier' ---
         if 'company_identifier' in missing_elements and 'constructora' in question:
