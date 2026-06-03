@@ -976,15 +976,22 @@ RECOMENDACIÓN CRÍTICA:
         # --- DETECCIÓN DE PARÁMETROS PARA MEDIA MÓVIL (N PERIODOS) ---
         n_periodos_ma = 3  # Valor por defecto
         if any(x in texto for x in ['media movil', 'promedio movil', 'suavizado', 'moving average']):
+            # Patrón 1: "media movil 8 meses" o "promedio movil de 12 meses"
             ma_match = re.search(r"(?:media|promedio)\s+movil\s+(?:de\s+)?(\d+)\s+meses?", texto)
             if ma_match:
                 n_periodos_ma = int(ma_match.group(1))
             else:
-                numeros_txt = {"tres": 3, "cinco": 5, "seis": 6, "diez": 10, "doce": 12, "dieciocho": 18, "veinticuatro": 24}
-                for palabra, valor in numeros_txt.items():
-                    if f"movil {palabra} meses" in texto or f"movil de {palabra} meses" in texto:
-                        n_periodos_ma = valor
-                        break
+                # Patrón 2: "a 8 meses" (ej: "media movil a 8 meses")
+                ma_match2 = re.search(r"a\s+(\d+)\s+meses?", texto)
+                if ma_match2:
+                    n_periodos_ma = int(ma_match2.group(1))
+                else:
+                    # Patrón 3: números en texto ("tres", "cinco", etc.)
+                    numeros_txt = {"tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10, "doce": 12, "dieciocho": 18, "veinticuatro": 24}
+                    for palabra, valor in numeros_txt.items():
+                        if f"movil {palabra} meses" in texto or f"movil de {palabra} meses" in texto or f"a {palabra} meses" in texto:
+                            n_periodos_ma = valor
+                            break
 
         group_by_cols = []
         # Limpieza de frases de métricas/nombres para evitar falsos positivos en detección de operaciones
