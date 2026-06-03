@@ -2396,7 +2396,14 @@ RECOMENDACIÓN CRÍTICA:
         tipos_interes = []
         
         # Detectar si hay intención explícita de agrupación por tipo
-        agrupar_por_tipo = any(x in texto for x in ['agrupado por vis', 'agrupado por vip', 'agrupado por no vis', 'por vis, no vis', 'por vis, vip', 'por tipo de vivienda'])
+        agrupar_por_tipo = False
+        if 'agrupado por' in texto:
+            # Verificar si después de "agrupado por" se mencionan tipos de vivienda
+            texto_despues_agrupado = texto.split('agrupado por')[-1].lower()
+            if any(t in texto_despues_agrupado for t in ['vis', 'vip', 'tipo de vivienda']):
+                agrupar_por_tipo = True
+        elif any(x in texto for x in ['por vis, no vis', 'por vis, vip', 'por no vis, vip', 'por vis, no vis y vip']):
+            agrupar_por_tipo = True
         
         # Detectar No VIS
         if "no vis" in texto:
