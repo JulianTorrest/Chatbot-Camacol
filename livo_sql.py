@@ -3362,19 +3362,65 @@ RECOMENDACIÓN CRÍTICA:
         Retorna una lista de regiones (separadas por |) o una sola región si es única.
         """
         ubicaciones = [
-            'bogota d.c.', 'bogota', 'antioquia', 'valle del cauca', 'valle',
-            'atlantico', 'cundinamarca', 'bolivar', 'santander', 'norte de santander',
-            'caldas', 'risaralda', 'quindio', 'huila', 'tolima', 'narino', 'cauca',
-            'cesar', 'cordoba', 'sucre', 'magdalena', 'meta', 'boyaca', 'cucuta', 
-            'boyaca_casanare', 'cucuta_nororiente', 'nacional', 'colombia', 'pais', 'todo el pais',
-            # Ciudades capitales y principales
-            'medellin', 'cali', 'barranquilla', 'cartagena', 'bucaramanga', 'pereira',
-            'manizales', 'ibague', 'santa marta', 'villavicencio', 'pasto', 'monteria',
-            'valledupar', 'popayan', 'armenia', 'neiva', 'tunja', 'riohacha', 'sincelejo',
-            'florencia', 'yopal', 'quibdo', 'san andres', 'leticia', 'mocoa', 'mitu',
-            'puerto carreno', 'inirida', 'san jose del guaviare', 'arauca'
+            # Regionales (con nombres exactos de la base de datos)
+            'bogota y cundinamarca', 'bogota & cundinamarca', 'bogota cundinamarca',
+            'cordoba y sucre', 'cordoba & sucre', 'cordoba sucre',
+            'nariño', 'narino',
+            'valle', 'valle del cauca',
+            'bolivar', 'bolívar',
+            'antioquia',
+            'santander',
+            'cauca',
+            'tolima',
+            'huila',
+            'risaralda',
+            'atlantico', 'atlántico',
+            'caldas',
+            'boyaca casanare', 'boyacá casanare', 'boyaca_casanare',
+            'magdalena',
+            'cucuta nororiente', 'cúcuta nororiente', 'cucuta_nororiente',
+            'meta',
+            'cesar',
+            'quindio', 'quindío',
+            # Departamentos y ciudades (para compatibilidad)
+            'bogota d.c.', 'bogota', 'cundinamarca',
+            'sucre',
+            'norte de santander', 'cucuta', 'cúcuta',
+            'boyaca', 'boyacá',
+            'cartagena',
+            'cali',
+            'medellin',
+            'barranquilla',
+            'bucaramanga',
+            'pereira',
+            'manizales',
+            'ibague',
+            'santa marta',
+            'villavicencio',
+            'pasto',
+            'monteria',
+            'valledupar',
+            'popayan',
+            'armenia',
+            'neiva',
+            'tunja',
+            'riohacha',
+            'sincelejo',
+            'florencia',
+            'yopal',
+            'quibdo',
+            'san andres',
+            'leticia',
+            'mocoa',
+            'mitu',
+            'puerto carreno',
+            'inirida',
+            'san jose del guaviare',
+            'arauca',
+            # Referencias nacionales
+            'nacional', 'colombia', 'pais', 'todo el pais'
         ]
-        # Ordenar por longitud descendente para coincidir "valle del cauca" antes que "valle"
+        # Ordenar por longitud descendente para coincidir "bogota y cundinamarca" antes que "bogota"
         ubicaciones.sort(key=len, reverse=True)
         
         # Detectar múltiples regiones separadas por conectores
@@ -3406,6 +3452,36 @@ RECOMENDACIÓN CRÍTICA:
         Si el fragmento contiene "|", genera condiciones OR para múltiples regiones.
         Si no, usa la lógica original para una sola región.
         """
+        # Mapeo de nombres de usuario a nombres exactos de regionales en la base de datos
+        mapeo_regional = {
+            'bogota': 'Bogotá & Cundinamarca',
+            'bogota d.c.': 'Bogotá & Cundinamarca',
+            'cundinamarca': 'Bogotá & Cundinamarca',
+            'bogota cundinamarca': 'Bogotá & Cundinamarca',
+            'bogota y cundinamarca': 'Bogotá & Cundinamarca',
+            'bogota & cundinamarca': 'Bogotá & Cundinamarca',
+            'atlantico': 'Atlántico',
+            'atlántico': 'Atlántico',
+            'cordoba': 'Córdoba & Sucre',
+            'cordoba y sucre': 'Córdoba & Sucre',
+            'cordoba & sucre': 'Córdoba & Sucre',
+            'sucre': 'Córdoba & Sucre',
+            'narino': 'Nariño',
+            'nariño': 'Nariño',
+            'bolivar': 'Bolívar',
+            'bolívar': 'Bolívar',
+            'boyaca': 'Boyacá_Casanare',
+            'boyacá': 'Boyacá_Casanare',
+            'boyaca casanare': 'Boyacá_Casanare',
+            'boyacá casanare': 'Boyacá_Casanare',
+            'cucuta': 'Cúcuta_Nororiente',
+            'cúcuta': 'Cúcuta_Nororiente',
+            'cucuta nororiente': 'Cúcuta_Nororiente',
+            'cúcuta nororiente': 'Cúcuta_Nororiente',
+            'quindio': 'Quindío',
+            'quindío': 'Quindío',
+        }
+        
         # Verificar si hay múltiples regiones separadas por "|"
         if '|' in region_fragmento:
             regiones = region_fragmento.split('|')
@@ -3414,9 +3490,14 @@ RECOMENDACIÓN CRÍTICA:
                 # Normalizar cada región individualmente
                 frag_norm = normalize_text(region).upper()
                 
-                # Caso especial: espacio simple "BOGOTA CUNDINAMARCA" -> "BOGOTA & CUNDINAMARCA"
-                frag_norm = frag_norm.replace('BOGOTA CUNDINAMARCA', 'BOGOTA & CUNDINAMARCA')
-                frag_norm = frag_norm.replace('CORDOBA SUCRE', 'CORDOBA & SUCRE')
+                # Aplicar mapeo a nombre exacto de regional
+                frag_lower = normalize_text(region).lower()
+                if frag_lower in mapeo_regional:
+                    frag_norm = normalize_text(mapeo_regional[frag_lower]).upper()
+                else:
+                    # Caso especial: espacio simple "BOGOTA CUNDINAMARCA" -> "BOGOTA & CUNDINAMARCA"
+                    frag_norm = frag_norm.replace('BOGOTA CUNDINAMARCA', 'BOGOTA & CUNDINAMARCA')
+                    frag_norm = frag_norm.replace('CORDOBA SUCRE', 'CORDOBA & SUCRE')
                 
                 # Si es una referencia nacional, no filtrar (traer todo)
                 if frag_norm in ['NACIONAL', 'COLOMBIA', 'PAIS', 'TODO EL PAIS']:
@@ -3458,9 +3539,14 @@ RECOMENDACIÓN CRÍTICA:
         # 1) Normalizamos el fragmento en Python (sin tildes, minúsculas)
         frag_norm = normalize_text(region_fragmento).replace(' y ', ' & ').replace(' - ', ' & ').upper()
         
-        # Caso especial: espacio simple "BOGOTA CUNDINAMARCA" -> "BOGOTA & CUNDINAMARCA"
-        frag_norm = frag_norm.replace('BOGOTA CUNDINAMARCA', 'BOGOTA & CUNDINAMARCA')
-        frag_norm = frag_norm.replace('CORDOBA SUCRE', 'CORDOBA & SUCRE')
+        # Aplicar mapeo a nombre exacto de regional
+        frag_lower = normalize_text(region_fragmento).lower()
+        if frag_lower in mapeo_regional:
+            frag_norm = normalize_text(mapeo_regional[frag_lower]).upper()
+        else:
+            # Caso especial: espacio simple "BOGOTA CUNDINAMARCA" -> "BOGOTA & CUNDINAMARCA"
+            frag_norm = frag_norm.replace('BOGOTA CUNDINAMARCA', 'BOGOTA & CUNDINAMARCA')
+            frag_norm = frag_norm.replace('CORDOBA SUCRE', 'CORDOBA & SUCRE')
 
         # Si es una referencia nacional, no filtrar (traer todo)
         if frag_norm in ['NACIONAL', 'COLOMBIA', 'PAIS', 'TODO EL PAIS']:
@@ -5047,7 +5133,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             if avanzado: contexto_items.extend(avanzado)
 
             if contexto_items:
-                respuesta += "\n\n📝 **Contexto LIVO:**\n" + "\n".join(contexto_items)
+                respuesta += "\n\n **Contexto LIVO:**\n" + "\n".join(contexto_items)
 
             # MEJORA: Visualización Automática y Contextual
             chart_data = None
@@ -5891,7 +5977,7 @@ Responde de forma concisa y directa, sin introducciones ni explicaciones."""
     def generar_reporte_ejecutivo(self, pregunta: str, respuesta: str, contexto: str, sql: str) -> str:
         """Genera un reporte ejecutivo en formato Markdown (Generación de Entregables)."""
         fecha_reporte = datetime.now().strftime("%Y-%m-%d")
-        reporte = f"# 📑 REPORTE EJECUTIVO CAMACOL\n**Fecha:** {fecha_reporte}\n**Consulta:** {pregunta}\n\n## 1. Resumen Ejecutivo\n{respuesta}\n\n## 2. Análisis de Contexto y Mercado\n{contexto.replace('📝 **Contexto LIVO:**', '').strip()}\n\n## 3. Detalles Técnicos\n**Fuente de Datos:** Base de Datos LIVO (Coordenada Urbana)\n**Consulta Ejecutada:**\n```sql\n{sql}\n```\n\n---\n*Generado automáticamente por el Agente Inteligente CAMACOL*"
+        reporte = f"# 📑 REPORTE EJECUTIVO CAMACOL\n**Fecha:** {fecha_reporte}\n**Consulta:** {pregunta}\n\n## 1. Resumen Ejecutivo\n{respuesta}\n\n## 2. Análisis de Contexto y Mercado\n{contexto.replace(' **Contexto LIVO:**', '').strip()}\n\n## 3. Detalles Técnicos\n**Fuente de Datos:** Base de Datos LIVO (Coordenada Urbana)\n**Consulta Ejecutada:**\n```sql\n{sql}\n```\n\n---\n*Generado automáticamente por el Agente Inteligente CAMACOL*"
         return reporte
 
     def _detectar_anomalias(self, sql: str, resultado_actual: list, columnas: list) -> Optional[str]:
