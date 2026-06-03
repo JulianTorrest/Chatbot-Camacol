@@ -4488,8 +4488,9 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
         """Genera contexto avanzado: Market Share, Segmentos, Coyuntura, Salud, Momentum, Normativa."""
         contexto = []
         
-        # Solo procesar si tenemos un resultado numérico único
+        # Determinar tipo de resultado
         es_dato_unico = len(result) == 1 and len(columns) == 1 and isinstance(result[0][0], (int, float))
+        es_tabla_agrupada = len(result) > 1 and len(columns) >= 2
         valor_actual = result[0][0] if es_dato_unico else 0
         
         # 1. Integración Narrativa de Coyuntura
@@ -4501,69 +4502,151 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
         normativo = self._obtener_contexto_normativo(pregunta)
         if normativo: contexto.append(f"⚖️ **Normativa:** {normativo}")
 
+        # 3. Contexto para resultados agrupados (tablas)
+        if es_tabla_agrupada:
+            contexto_tabla = self._generar_contexto_tabla(result, columns, pregunta)
+            if contexto_tabla: contexto.extend(contexto_tabla)
+
         if es_dato_unico and valor_actual > 0:
-            # 3. Market Share (Participación)
+            # 4. Market Share (Participación)
             share = self._calcular_market_share(sql, valor_actual)
             if share: contexto.append(share)
 
-            # 4. Desglose por Segmento (VIS vs No VIS)
+            # 5. Desglose por Segmento (VIS vs No VIS)
             # Solo si no está filtrado ya por tipo específico en el SQL
             if "tipo_vivienda =" not in sql and "tipo_vivienda IN" not in sql:
                 desglose = self._calcular_desglose_segmento(sql, valor_actual)
                 if desglose: contexto.append(desglose)
             
-            # 5. Indicadores Cruzados (Salud del Mercado)
+            # 6. Indicadores Cruzados (Salud del Mercado)
             salud = self._calcular_indicadores_salud(sql, valor_actual)
             if salud: contexto.append(salud)
             
-            # 6. Tendencia de Corto Plazo (Momentum)
+            # 7. Tendencia de Corto Plazo (Momentum)
             momentum = self._calcular_momentum(sql, valor_actual)
             if momentum: contexto.append(momentum)
             
-            # 7. Proyecciones a Corto Plazo (Forecasting)
+            # 8. Proyecciones a Corto Plazo (Forecasting)
             forecast = self._calcular_proyeccion_corto_plazo(sql, valor_actual)
             if forecast: contexto.append(forecast)
 
-            # 8. Benchmarking Automático (Comparación entre Pares)
+            # 9. Benchmarking Automático (Comparación entre Pares)
             benchmark = self._calcular_benchmarking(sql, valor_actual)
             if benchmark: contexto.append(benchmark)
 
-            # 9. Análisis de Absorción de Lanzamientos
+            # 10. Análisis de Absorción de Lanzamientos
             absorcion = self._calcular_absorcion_lanzamientos(sql, valor_actual)
             if absorcion: contexto.append(absorcion)
 
-            # 10. Índice de Concentración de Mercado (HHI)
+            # 11. Índice de Concentración de Mercado (HHI)
             concentracion = self._calcular_concentracion_mercado(sql)
             if concentracion: contexto.append(concentracion)
 
-            # 11. Contexto de Valorización (Precios)
+            # 12. Contexto de Valorización (Precios)
             valorizacion = self._calcular_valorizacion_precios(sql)
             if valorizacion: contexto.append(valorizacion)
 
-            # 12. Alertas de Agotamiento (Stockout)
+            # 13. Alertas de Agotamiento (Stockout)
             agotamiento = self._calcular_alerta_agotamiento(sql, valor_actual)
             if agotamiento: contexto.append(agotamiento)
 
-            # 13. Distribución Fina por Rangos de SMMLV
+            # 14. Distribución Fina por Rangos de SMMLV
             dist_smmlv = self._calcular_distribucion_fina_smmlv(sql, valor_actual)
             if dist_smmlv: contexto.append(dist_smmlv)
 
-            # 14. Contexto de Estacionalidad
+            # 15. Contexto de Estacionalidad
             estacionalidad = self._calcular_estacionalidad(sql)
             if estacionalidad: contexto.append(estacionalidad)
             
-            # 15. Razonamiento Multi-Fuente (Correlación Macro)
+            # 16. Razonamiento Multi-Fuente (Correlación Macro)
             macro = self._analisis_macro_sectorial(sql)
             if macro: contexto.append(macro)
 
-            # 16. Auditoría de Calidad de Datos
+            # 17. Auditoría de Calidad de Datos
             calidad = self._auditar_calidad_datos(sql, result, columns)
             if calidad: contexto.append(calidad)
 
-            # 17. Simulación de Escenarios (What-If)
+            # 18. Simulación de Escenarios (What-If)
             simulacion = self._simular_escenario_automatico(sql, valor_actual)
             if simulacion: contexto.append(simulacion)
 
+        return contexto
+
+    def _generar_contexto_tabla(self, result: list, columns: list, pregunta: str) -> List[str]:
+        """Genera contexto específico para resultados agrupados (tablas)."""
+        contexto = []
+        
+        if not result or len(result) == 0:
+            return contexto
+        
+        # Identificar columna numérica para cálculos
+        idx_numerico = -1
+        idx_categoria = -1
+        for i, col in enumerate(columns):
+            if any(x in col.lower() for x in ['unidades', 'valor', 'area', 'precio', 'total', 'sum', 'count']):
+                idx_numerico = i
+            elif any(x in col.lower() for x in ['estado', 'fase', 'tipo', 'segmento', 'estrato', 'cuenta', 'departamento', 'ciudad', 'regional']):
+                idx_categoria = i
+        
+        if idx_numerico == -1:
+            return contexto
+        
+        # Calcular total y porcentajes
+        total_general = sum(row[idx_numerico] for row in result if isinstance(row[idx_numerico], (int, float)))
+        
+        if total_general == 0:
+            return contexto
+        
+        # Generar análisis de distribución
+        analisis_distribucion = []
+        for row in result:
+            valor = row[idx_numerico]
+            if isinstance(valor, (int, float)) and valor > 0:
+                pct = (valor / total_general) * 100
+                categoria = row[idx_categoria] if idx_categoria != -1 and idx_categoria < len(row) else str(row[0])
+                analisis_distribucion.append((categoria, valor, pct))
+        
+        # Ordenar por valor descendente
+        analisis_distribucion.sort(key=lambda x: x[1], reverse=True)
+        
+        # Generar insights
+        if len(analisis_distribucion) > 0:
+            # Insight 1: Categoría dominante
+            top_categoria, top_valor, top_pct = analisis_distribucion[0]
+            contexto.append(f"📊 **Distribución:** La categoría **{top_categoria}** domina con {top_valor:,.0f} unidades ({top_pct:.1f}% del total).")
+            
+            # Insight 2: Si hay múltiples categorías, mostrar distribución
+            if len(analisis_distribucion) > 1:
+                distribucion_str = ", ".join([f"{cat}: {pct:.1f}%" for cat, val, pct in analisis_distribucion[:3]])
+                contexto.append(f"📈 **Composición:** Distribución: {distribucion_str}")
+            
+            # Insight 3: Análisis específico según tipo de categoría
+            if idx_categoria != -1:
+                col_categoria = columns[idx_categoria].lower()
+                
+                # Análisis de estado (ciclo de vida)
+                if 'estado' in col_categoria:
+                    preventa_pct = next((pct for cat, val, pct in analisis_distribucion if 'preventa' in str(cat).lower()), 0)
+                    construccion_pct = next((pct for cat, val, pct in analisis_distribucion if 'construccion' in str(cat).lower()), 0)
+                    paralizado_pct = next((pct for cat, val, pct in analisis_distribucion if 'paralizado' in str(cat).lower()), 0)
+                    
+                    if preventa_pct > 50:
+                        contexto.append(f"🏗️ **Ciclo de Vida:** El mercado está en fase de comercialización ({preventa_pct:.1f}% en preventa), indicando alta actividad de lanzamientos.")
+                    elif construccion_pct > 50:
+                        contexto.append(f"🏗️ **Ciclo de Vida:** El mercado está en fase de ejecución ({construccion_pct:.1f}% en construcción), indicando proyectos en desarrollo activo.")
+                    elif paralizado_pct > 10:
+                        contexto.append(f"⚠️ **Alerta:** {paralizado_pct:.1f}% de las unidades están paralizadas, lo que podría indicar problemas operativos o financieros.")
+                
+                # Análisis de tipo de vivienda
+                elif 'tipo' in col_categoria or 'segmento' in col_categoria:
+                    vis_pct = next((pct for cat, val, pct in analisis_distribucion if 'vis' in str(cat).lower() and 'no' not in str(cat).lower()), 0)
+                    no_vis_pct = next((pct for cat, val, pct in analisis_distribucion if 'no vis' in str(cat).lower()), 0)
+                    
+                    if vis_pct > 0:
+                        contexto.append(f"🏠 **Segmentación:** {vis_pct:.1f}% corresponde a vivienda de interés social (VIS).")
+                    if no_vis_pct > 0:
+                        contexto.append(f"🏠 **Segmentación:** {no_vis_pct:.1f}% corresponde a vivienda No VIS (mercado formal).")
+        
         return contexto
 
     def _obtener_narrativa_coyuntura(self, pregunta: str) -> Optional[str]:
