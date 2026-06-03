@@ -26,6 +26,13 @@ from functools import lru_cache
 from llm_providers import llamar_api_ia
 from config import AI_PROVIDERS, AIModel
 
+# Importar streamlit para debug en interfaz (opcional)
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+
 try:
     from sentence_transformers import SentenceTransformer, util
     SEMANTIC_CACHE_AVAILABLE = True
@@ -3203,7 +3210,13 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         ]
         
         for kw in alta_confianza:
-            if re.search(r'\b' + re.escape(kw) + r'\b', texto):
+            match = re.search(r'\b' + re.escape(kw) + r'\b', texto)
+            if match:
+                debug_msg2 = f"[DEBUG es_pregunta_livo] Coincidencia alta_confianza: '{kw}' en texto"
+                if STREAMLIT_AVAILABLE:
+                    st.text(debug_msg2)
+                else:
+                    print(debug_msg2)
                 return True
                 
         # 2. Palabras clave de MEDIA CONFIANZA (compartidas con lenguaje general)
@@ -3252,11 +3265,16 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         has_cuenta = any(re.search(r'\b' + re.escape(cta) + r'\b', texto) for cta in cuentas)
         
         # DEBUG: Imprimir estado de detección
-        print(f"[DEBUG es_pregunta_livo] texto: {texto}")
-        print(f"[DEBUG es_pregunta_livo] has_alta_confianza_data: {has_alta_confianza_data}")
-        print(f"[DEBUG es_pregunta_livo] has_media_confianza: {has_media_confianza}")
-        print(f"[DEBUG es_pregunta_livo] has_operacion: {has_operacion}")
-        print(f"[DEBUG es_pregunta_livo] has_periodo: {has_periodo}")
+        debug_msg = f"[DEBUG es_pregunta_livo] texto: {texto}\n"
+        debug_msg += f"[DEBUG es_pregunta_livo] has_alta_confianza_data: {has_alta_confianza_data}\n"
+        debug_msg += f"[DEBUG es_pregunta_livo] has_media_confianza: {has_media_confianza}\n"
+        debug_msg += f"[DEBUG es_pregunta_livo] has_operacion: {has_operacion}\n"
+        debug_msg += f"[DEBUG es_pregunta_livo] has_periodo: {has_periodo}"
+        
+        if STREAMLIT_AVAILABLE:
+            st.text(debug_msg)
+        else:
+            print(debug_msg)
         
         # 3. Palabras clave CONCEPTUALES (que deberían ir a LLM general)
         conceptos_keywords = [
