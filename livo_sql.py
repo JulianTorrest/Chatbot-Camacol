@@ -2840,6 +2840,9 @@ RECOMENDACIÓN CRÍTICA:
         if frag_norm in ['NACIONAL', 'COLOMBIA', 'PAIS', 'TODO EL PAIS']:
             return "1=1"
 
+        # Escapar comillas simples en el fragmento para evitar errores SQL
+        frag_norm = frag_norm.replace("'", "''")
+
         # 2) En SQL, usamos TRANSLATE para quitar tildes antes del LIKE
         norm_depto = (
             "UPPER(TRANSLATE(departamento, "
