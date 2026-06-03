@@ -986,7 +986,7 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "BUCKET_SMLV"
         elif any(x in texto for x in ['promedio ponderado', 'promedio_ponderado']):
             op_funcion = "PROMEDIO_PONDERADO"
-        elif any(x in texto for x in ['crecimiento', 'variacion', 'variación', 'cambio', 'diferencia', 'frente a', 'comparado con']):
+        elif any(x in texto for x in ['crecimiento', 'crecieron', 'variacion', 'variación', 'cambio', 'diferencia', 'frente a', 'comparado con']):
             op_funcion = "VARIACION"
         elif any(x in texto for x in ['conteo de valores unicos', 'conteo de valores únicos', 'distinct_count']):
             op_funcion = "DISTINCT_COUNT"
@@ -1288,6 +1288,36 @@ RECOMENDACIÓN CRÍTICA:
         # --- TIER 1: REGLAS DE NEGOCIO INDEPENDIENTES Y ESPECÍFICAS ---
         # Estas reglas tienen lógica de negocio implícita (ej: filtrar por vivienda para venta)
         # y se ejecutan primero para las preguntas más comunes.
+
+        # 0a) Ventas totales - PRIORIDAD MÁXIMA para preguntas comunes
+        if ("cuantas" in texto or "cuántas" in texto or "cuantos" in texto or "cuántos" in texto) and ("vendido" in texto or "vendidas" in texto or "vender" in texto or "se han vendido" in texto):
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Si no hay región específica, agregar desglose por regionales
+            if not region or region in ['nacional', 'colombia', 'pais', 'todo el pais']:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_ventas_totales "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Ventas' "
+                    f"AND {region_cond} "
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_ventas_totales DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_ventas_totales "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Ventas' "
+                    f"AND {region_cond} "
+                    f"{filtro_temporal}"
+                )
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Ventas Totales - Cuántas vendidas): {sql}")
+                return sql
+            except Exception:
+                pass
 
         # 0) Rotación de Inventarios (PRIORIDAD ALTA)
         if "rotacion" in texto or "rotación" in texto:
@@ -1974,6 +2004,7 @@ RECOMENDACIÓN CRÍTICA:
             elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): cuenta_calculo = 'Oferta'
             elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): cuenta_calculo = 'Iniciaciones'
             elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): cuenta_calculo = 'Entregadas'
+            elif any(x in texto for x in ['vendidas', 'vendido', 'vender', 'se han vendido']): cuenta_calculo = 'Ventas'
             
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
