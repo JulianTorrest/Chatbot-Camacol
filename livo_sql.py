@@ -1241,6 +1241,9 @@ RECOMENDACIÓN CRÍTICA:
         # Si no hay múltiples periodos, usar lógica original
         if not multiple_periodos:
             for mes_nombre, mes_num in meses_map_regex.items():
+                # Evitar falso positivo: "mayor" no debe detectarse como "mayo"
+                if mes_nombre == "mayo" and "mayor" in texto and "mayo" not in texto:
+                    continue
                 if mes_nombre in texto:
                     mes_filtro = f" AND CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER) = {mes_num}"
                     mes_nombre_detectado = mes_nombre
@@ -1544,50 +1547,165 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
 
+            # Detectar si es variación de precio promedio
+            es_variacion_precio_promedio = any(x in texto for x in ['precio promedio', 'precio medio', 'valor promedio', 'valor medio'])
+
             # Determinar periodos (Mes-Año vs Mes-Año o Año vs Año)
             if len(anios) >= 2:
                 a1, a2 = anios[0], anios[1] # Ej: 2026, 2025
                 
-                # Caso A: Comparación de meses específicos
-                if len(meses_encontrados) >= 1:
-                    m1_num = meses_encontrados[0][1]
-                    m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
-                    m1_name = meses_encontrados[0][0].title()
-                    m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                # Caso especial: Variación de precio promedio
+                if es_variacion_precio_promedio:
+                    # Caso A: Comparación de meses específicos
+                    if len(meses_encontrados) >= 1:
+                        m1_num = meses_encontrados[0][1]
+                        m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
+                        m1_name = meses_encontrados[0][0].title()
+                        m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                        
+                        f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
+                        f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
+
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                        sql = f"""
+                        WITH datos_actual AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        ),
+                        datos_anterior AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        )
+                        SELECT 
+                            ROUND((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0), 2) as "Precio Promedio {m1_name} {a1} (millones de pesos)",
+                            ROUND((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 2) as "Precio Promedio {m2_name} {a2} (millones de pesos)",
+                            ROUND(((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0) - (prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0)) / NULLIF((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 0) * 100, 2) as "Crecimiento (%)"
+                        FROM datos_actual curr, datos_anterior prev
+                        """
                     
-                    f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
-                    f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
+                    # Caso B: Comparación anual total
+                    else:
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
 
-                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
-                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
-
-                    sql = f"""
-                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
-                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
-                    SELECT curr.val as "{m1_name} {a1}", prev.val as "{m2_name} {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
-                    """
+                        sql = f"""
+                        WITH datos_actual AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_actual} AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {a1} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        ),
+                        datos_anterior AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_anterior} AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {a2} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        )
+                        SELECT 
+                            ROUND((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0), 2) as "Precio Promedio Año {a1} (millones de pesos)",
+                            ROUND((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 2) as "Precio Promedio Año {a2} (millones de pesos)",
+                            ROUND(((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0) - (prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0)) / NULLIF((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 0) * 100, 2) as "Crecimiento (%)"
+                        FROM datos_actual curr, datos_anterior prev
+                        """
                 
-                # Caso B: Comparación anual total
+                # Caso normal: Variación de otras métricas (unidades, valor, etc.)
                 else:
-                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
-                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                    # Caso A: Comparación de meses específicos
+                    if len(meses_encontrados) >= 1:
+                        m1_num = meses_encontrados[0][1]
+                        m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
+                        m1_name = meses_encontrados[0][0].title()
+                        m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                        
+                        f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
+                        f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
 
-                    sql = f"""
-                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
-                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
-                    SELECT curr.val as "Año {a1}", prev.val as "Año {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
-                    """
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                        sql = f"""
+                        WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                        anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                        SELECT curr.val as "{m1_name} {a1}", prev.val as "{m2_name} {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                        """
+                    
+                    # Caso B: Comparación anual total
+                    else:
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                        sql = f"""
+                        WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                        anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                        SELECT curr.val as "Año {a1}", prev.val as "Año {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                        """
                 
                 try:
                     # Si es oferta, no comparar totales sumados del año sino el promedio o el último corte
-                    if cuenta_calculo == 'Oferta' and len(meses_encontrados) == 0:
+                    if cuenta_calculo == 'Oferta' and len(meses_encontrados) == 0 and not es_variacion_precio_promedio:
                         sql = sql.replace(metrica_sql, f"COALESCE(AVG({col_metrica}), 0)")
 
                     # print(f"[DEBUG LIVO reglas TIER 1] SQL VARIACION: {sql}")
                     return sql.strip()
                 except Exception: pass
 
-        # 0b) Ventas totales - PRIORIDAD MÁXIMA para preguntas comunes
+        # 0b) Conteo de constructoras - PRIORIDAD ALTA para preguntas de conteo de entidades
+        if ("cuales" in texto or "cuáles" in texto or "cuantas" in texto or "cuántas" in texto or "cuantos" in texto or "cuántos" in texto) and ("constructora" in texto or "constructoras" in texto or "empresa" in texto or "empresas" in texto or "firma" in texto or "firmas" in texto):
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar cuenta (Ventas por defecto)
+            cuenta_filtro = "cuenta = 'Ventas'"
+            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): 
+                cuenta_filtro = "cuenta = 'Lanzamientos'"
+            elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): 
+                cuenta_filtro = "cuenta = 'Oferta'"
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): 
+                cuenta_filtro = "cuenta = 'Iniciaciones'"
+            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): 
+                cuenta_filtro = "cuenta = 'Entregadas'"
+            
+            # Si hay múltiples regiones, agrupar por regional
+            es_multiple_regiones = region and '|' in region
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, COUNT(DISTINCT compania_constructora) AS total_constructoras "
+                    "FROM livo "
+                    f"WHERE {cuenta_filtro} "
+                    f"AND {region_cond} "
+                    f"{filtro_temporal} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta' "
+                    "GROUP BY regional "
+                    "ORDER BY total_constructoras DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT COUNT(DISTINCT compania_constructora) AS total_constructoras "
+                    "FROM livo "
+                    f"WHERE {cuenta_filtro} "
+                    f"AND {region_cond} "
+                    f"{filtro_temporal} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                )
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Conteo Constructoras): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 0c) Ventas totales - PRIORIDAD MÁXIMA para preguntas comunes
         if ("cuales" in texto or "cuáles" in texto or "cuantas" in texto or "cuántas" in texto or "cuantos" in texto or "cuántos" in texto) and ("vendido" in texto or "vendidas" in texto or "vender" in texto or "se han vendido" in texto):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
@@ -2834,43 +2952,112 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
 
+            # Detectar si es variación de precio promedio
+            es_variacion_precio_promedio = any(x in texto for x in ['precio promedio', 'precio medio', 'valor promedio', 'valor medio'])
+
             # Determinar periodos (Mes-Año vs Mes-Año o Año vs Año)
             if len(anios) >= 2:
                 a1, a2 = anios[0], anios[1] # Ej: 2026, 2025
                 
-                # Caso A: Comparación de meses específicos
-                if len(meses_encontrados) >= 1:
-                    m1_num = meses_encontrados[0][1]
-                    m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
-                    m1_name = meses_encontrados[0][0].title()
-                    m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                # Caso especial: Variación de precio promedio
+                if es_variacion_precio_promedio:
+                    # Caso A: Comparación de meses específicos
+                    if len(meses_encontrados) >= 1:
+                        m1_num = meses_encontrados[0][1]
+                        m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
+                        m1_name = meses_encontrados[0][0].title()
+                        m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                        
+                        f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
+                        f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
+
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                        sql = f"""
+                        WITH datos_actual AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        ),
+                        datos_anterior AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        )
+                        SELECT 
+                            ROUND((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0), 2) as "Precio Promedio {m1_name} {a1} (millones de pesos)",
+                            ROUND((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 2) as "Precio Promedio {m2_name} {a2} (millones de pesos)",
+                            ROUND(((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0) - (prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0)) / NULLIF((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 0) * 100, 2) as "Crecimiento (%)"
+                        FROM datos_actual curr, datos_anterior prev
+                        """
                     
-                    f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
-                    f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
+                    # Caso B: Comparación anual total
+                    else:
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
 
-                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
-                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
-
-                    sql = f"""
-                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
-                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
-                    SELECT curr.val as "{m1_name} {a1}", prev.val as "{m2_name} {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
-                    """
+                        sql = f"""
+                        WITH datos_actual AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_actual} AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {a1} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        ),
+                        datos_anterior AS (
+                            SELECT 
+                                COALESCE(SUM(valor), 0) as suma_valor,
+                                COALESCE(SUM(unidades), 0) as suma_unidades
+                            FROM livo
+                            WHERE {region_cond} {cuenta_cond_anterior} AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {a2} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'
+                        )
+                        SELECT 
+                            ROUND((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0), 2) as "Precio Promedio Año {a1} (millones de pesos)",
+                            ROUND((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 2) as "Precio Promedio Año {a2} (millones de pesos)",
+                            ROUND(((curr.suma_valor / 1000.0) / NULLIF(curr.suma_unidades, 0) - (prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0)) / NULLIF((prev.suma_valor / 1000.0) / NULLIF(prev.suma_unidades, 0), 0) * 100, 2) as "Crecimiento (%)"
+                        FROM datos_actual curr, datos_anterior prev
+                        """
                 
-                # Caso B: Comparación anual total
+                # Caso normal: Variación de otras métricas (unidades, valor, etc.)
                 else:
-                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
-                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                    # Caso A: Comparación de meses específicos
+                    if len(meses_encontrados) >= 1:
+                        m1_num = meses_encontrados[0][1]
+                        m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
+                        m1_name = meses_encontrados[0][0].title()
+                        m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                        
+                        f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
+                        f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
 
-                    sql = f"""
-                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
-                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
-                    SELECT curr.val as "Año {a1}", prev.val as "Año {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
-                    """
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                        sql = f"""
+                        WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                        anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                        SELECT curr.val as "{m1_name} {a1}", prev.val as "{m2_name} {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                        """
+                    
+                    # Caso B: Comparación anual total
+                    else:
+                        cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                        cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                        sql = f"""
+                        WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                        anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                        SELECT curr.val as "Año {a1}", prev.val as "Año {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                        """
                 
                 try:
                     # Si es oferta, no comparar totales sumados del año sino el promedio o el último corte
-                    if cuenta_calculo == 'Oferta' and len(meses_encontrados) == 0:
+                    if cuenta_calculo == 'Oferta' and len(meses_encontrados) == 0 and not es_variacion_precio_promedio:
                         sql = sql.replace(metrica_sql, f"COALESCE(AVG({col_metrica}), 0)")
 
                     print(f"[DEBUG LIVO reglas] SQL VARIACION: {sql}")
