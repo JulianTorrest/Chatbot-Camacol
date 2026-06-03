@@ -5121,10 +5121,53 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
         es_tabla_agrupada = len(result) > 1 and len(columns) >= 2
         valor_actual = result[0][0] if es_dato_unico else 0
         
-        # 1. Integración Narrativa de Coyuntura
-        if COYUNTURA_AVAILABLE:
-            narrativa = self._obtener_narrativa_coyuntura(pregunta)
-            if narrativa: contexto.append(f"📊 **Coyuntura:** {narrativa}")
+        # Detectar múltiples regiones en la pregunta
+        region = self._extraer_region_general(pregunta)
+        es_multiple_regiones = region and '|' in region if region else False
+        
+        # Si hay múltiples regiones, generar contexto específico para cada una usando LLM
+        if es_multiple_regiones:
+            regiones = region.split('|')
+            contexto.append(f"🗺️ **Análisis por Región:** Consulta que involucra {len(regiones)} regiones: {', '.join(regiones)}")
+            
+            # Generar contexto de coyuntura para cada región (sistema estadístico)
+            if COYUNTURA_AVAILABLE:
+                for reg in regiones:
+                    pregunta_region = pregunta.replace(region, reg)  # Crear pregunta específica para esta región
+                    narrativa = self._obtener_narrativa_coyuntura(pregunta_region)
+                    if narrativa:
+                        contexto.append(f"📊 **Coyuntura {reg}:** {narrativa}")
+            
+            # Generar contexto cualitativo usando LLM para cada región
+            try:
+                for reg in regiones:
+                    prompt_llm = f"""
+Genera un contexto cualitativo breve (máximo 2-3 frases) sobre el mercado inmobiliario en {reg} para Colombia.
+Contexto: El usuario está preguntando sobre: "{pregunta}"
+Enfócate en:
+- Dinámica del mercado (dinámico, estable, en recuperación)
+- Características principales (tipo de proyectos, segmentos predominantes)
+- Tendencias recientes relevantes
+
+Responde de forma concisa y directa, sin introducciones ni explicaciones."""
+                    
+                    # Usar FAST_PROVIDER si está disponible
+                    provider = FAST_PROVIDER if FAST_PROVIDER else AI_PROVIDERS[0] if AI_PROVIDERS else None
+                    if provider:
+                        respuesta_llm, error_llm = llamar_api_ia(prompt_llm, provider)
+                        if respuesta_llm and not error_llm:
+                            # Limpiar respuesta si es tupla
+                            if isinstance(respuesta_llm, tuple):
+                                respuesta_llm = respuesta_llm[0]
+                            if isinstance(respuesta_llm, str):
+                                contexto.append(f"🤖 **Contexto {reg} (IA):** {respuesta_llm.strip()}")
+            except Exception as e:
+                print(f"⚠️ Error generando contexto LLM para regiones: {e}")
+        else:
+            # 1. Integración Narrativa de Coyuntura (única región)
+            if COYUNTURA_AVAILABLE:
+                narrativa = self._obtener_narrativa_coyuntura(pregunta)
+                if narrativa: contexto.append(f"📊 **Coyuntura:** {narrativa}")
 
         # 2. Contexto Normativo Proactivo
         normativo = self._obtener_contexto_normativo(pregunta)
