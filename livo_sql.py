@@ -1116,8 +1116,14 @@ RECOMENDACIÓN CRÍTICA:
             metrica_sql = f"SUM({col_metrica})"
             alias_sql = "total"
         elif op_funcion == "RANKING":
-            metrica_sql = f"SUM({col_metrica})"
-            alias_sql = "total"
+            # Si es RANKING y se pregunta por oferta sin especificar unidades, usar COUNT
+            # para contar registros en lugar de sumar unidades
+            if 'oferta' in texto and not any(x in texto for x in ['unidades', 'viviendas', 'cantidad', 'total de', 'numero de', 'número de']):
+                metrica_sql = "COUNT(*)"
+                alias_sql = "total_registros"
+            else:
+                metrica_sql = f"SUM({col_metrica})"
+                alias_sql = "total"
         elif col_metrica == "identificador":
             metrica_sql = "COUNT(DISTINCT identificador)"
             alias_sql = "total_proyectos"
