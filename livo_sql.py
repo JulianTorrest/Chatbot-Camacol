@@ -1183,7 +1183,7 @@ RECOMENDACIÓN CRÍTICA:
                 filtro_temporal = anio_filtro or mes_filtro
         
         # Manejo explícito de "último año" o "últimos 12 meses"
-        if "ultimo ano" in texto or "ultimo año" in texto or "ultimos 12 meses" in texto:
+        if "ultimo ano" in texto or "ultimo año" in texto or "ultimos 12 meses" in texto or "últimos 12 meses" in texto or "últimos doce meses" in texto or "ultimos doce meses" in texto:
             filtro_temporal = " AND doce_meses = (SELECT MAX(doce_meses) FROM livo)"
         # NUEVO: Manejo de "este año" (Año calendario actual en la BD)
         elif "este ano" in texto or "este año" in texto:
@@ -1931,13 +1931,25 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
-            sql = (
-                f"SELECT {metrica_sql} AS {alias_sql}_ventas_totales "
-                "FROM livo "
-                f"WHERE cuenta = 'Ventas' "
-                f"AND {region_cond} "
-                f"{filtro_temporal}"
-            )
+            # Si no hay región específica, agregar desglose por regionales
+            if not region or region in ['nacional', 'colombia', 'pais', 'todo el pais']:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_ventas_totales "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Ventas' "
+                    f"AND {region_cond} "
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_ventas_totales DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_ventas_totales "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Ventas' "
+                    f"AND {region_cond} "
+                    f"{filtro_temporal}"
+                )
             try:
                 print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Ventas Totales): {sql}")
                 return sql
@@ -2395,7 +2407,13 @@ RECOMENDACIÓN CRÍTICA:
                 'tipo': 'tipo_vivienda',
                 'tipos': 'tipo_vivienda',
                 'segmento': 'segmento_pre',
-                'segmentos': 'segmento_pre'
+                'segmentos': 'segmento_pre',
+                'constructora': 'compania_constructora',
+                'constructoras': 'compania_constructora',
+                'empresa': 'compania_constructora',
+                'empresas': 'compania_constructora',
+                'firma': 'compania_constructora',
+                'firmas': 'compania_constructora'
             }
             
             for key, col in agrupacion_map.items():
@@ -3132,6 +3150,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
             'entregadas', 'entregas', 'saldo que inicia', 'saldo inicial', 'precio_mc_promedio',
             'compania_constructora', 'compañia_constructora', 'obras detenidas', 'suspendidas',
             'desistido', 'desistimiento', 'apartamento', 'apartamentos', 'casa', 'casas',
+            'vendido', 'vendidas', 'vender', 'se han vendido', 'se vendieron', 'comercializado', 'comercializadas',
             'costo', 'precio', 'valor'  # Sinónimos para métricas monetarias
         ]
         
