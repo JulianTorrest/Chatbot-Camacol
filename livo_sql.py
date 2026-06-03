@@ -428,22 +428,54 @@ RECOMENDACIÓN CRÍTICA:
             'sinonimos': ['NIT', 'identificación constructora', 'cédula jurídica', 'RUT', 'nit de la constructora']
         },
         
-        # Estados y fases del proyecto
+        # Estados y fases del proyecto (Ciclo de vida de la construcción)
+        # 
+        # IMPORTANTE: DIFERENCIA ENTRE estado Y last_estado
+        # Tener ambos campos en la base de datos es una práctica común para análisis de transición y reportería histórica.
+        #
+        # 1. La Diferencia Conceptual:
+        # - estado (Estado Actual/Vigente): Situación del proyecto hoy, en el corte del mes actual. Es el estado "vivo" para tableros de control.
+        # - last_estado (Estado Anterior/Previo): Estado en el que estaba el proyecto justo antes de cambiar al estado actual. Es el estado histórico inmediato.
+        #
+        # 2. ¿Para qué se usan ambos campos?
+        # A. Análisis de Transiciones y "Matriz de Migración": Permite medir cómo se mueven los proyectos entre estados.
+        #    - last_estado=Preventa → estado=Construcción: El proyecto avanzó al alcanzar punto de equilibrio (Avance normal)
+        #    - last_estado=Construcción → estado=Paralizado: El proyecto sufrió un problema operativo/financiero (Alerta)
+        #    - last_estado=Paralizado → estado=Construcción: El proyecto reactivó su obra (Reactivación)
+        # B. Calcular la "Siniestralidad" o Tasa de Deserción: Al buscar estado=Cancelado, last_estado indica si se canceló en planos (Proyectado) o ya vendido (Preventa)
+        # C. Control de Calidad de Datos: Detecta errores humanos. Si last_estado=Proyectado → estado=TVE es imposible metodológicamente.
+        #
+        # 3. Ejemplo práctico:
+        # - Torres del Norte: last_estado=Preventa, estado=Construcción, fase=Cimentación → Arrancó obra (alcanzó punto de equilibrio)
+        # - Residencial El Bosque: last_estado=Construcción, estado=Paralizado, fase=Estructura → Se frenó (estaba levantando estructura)
+        # - Sendero Verde: last_estado=Rediseñado, estado=Preventa, fase=Sin Iniciar → Volvió a preventa
+        #
+        # CICLO DE VIDA DE LA CONSTRUCCIÓN (Orden Cronológico):
+        # 1. Proyectado + Sin Iniciar = Planeación: Diseño, viabilidad o trámites de licencias. Sin actividad física ni comercial.
+        # 2. Preventa + Sin Iniciar/Preliminar = Comercialización: Apertura de salas de ventas y búsqueda del punto de equilibrio. Fases Preliminares (cerramientos, movimiento de tierras).
+        # 3. Construcción + Cimentación = Ejecución (Etapa Inicial): Obra subterránea, pilotaje y bases estructurales tras alcanzar el punto de equilibrio.
+        # 4. Construcción + Obra Negra = Ejecución (Avance): Muros divisorios, mampostería básica y canalizaciones internas primarias.
+        # 5. Construcción/TE + Estructura = Ejecución (Hito Estructural): Estructura principal (vigas, columnas, losas). Si se completa el 100%, el estado puede mutar a TE (Terminado en Estructura).
+        # 6. Construcción + Acabados = Ejecución (Etapa Final): Revestimientos, yesos, pisos, carpintería, fachadas e instalaciones definitivas.
+        # 7. Construcción + Urbanismo = Adecuación del Entorno: Vías de acceso, andenes, zonas verdes y áreas comunes.
+        # 8. TVE + Terminado = Cierre/Postventa: Obra física concluida al 100% y estado TVE (Terminado Vendido Entregado) con escrituración y entrega de llaves.
         'estado': {
             'tipo': 'VARCHAR',
-            'descripcion': 'Estado actual del proyecto',
+            'descripcion': 'Estado actual del proyecto (Preventa, Paralizado, Construcción, TVE, Rediseñado, TE, Cancelado, Proyectado). TE = Terminado y Entregado, TVE = Terminado, Vendido y Entregado',
             'sinonimos': ['estatus', 'situación', 'condición', 'cómo está', 'estado actual', 'vendido', 'en obra', 'terminado'],
             'valores_completos': ['Construcción', 'Preventa', 'TVE', 'Rediseñado', 'Paralizado', 'TE', 'Cancelado', 'Proyectado']
         },
         'fase': {
             'tipo': 'VARCHAR',
-            'descripcion': 'Fase del proyecto',
-            'sinonimos': ['etapa', 'progreso', 'ciclo', 'momento del proyecto', 'en qué etapa va', 'preventa', 'lanzamiento']
+            'descripcion': 'Fase constructiva del proyecto (Sin Iniciar, Estructura, Terminado, Obra Negra, Cimentación, Preliminar, Acabados, Urbanismo)',
+            'sinonimos': ['etapa', 'progreso', 'ciclo', 'momento del proyecto', 'en qué etapa va', 'preventa', 'lanzamiento'],
+            'valores_completos': ['Sin Iniciar', 'Estructura', 'Terminado', 'Obra Negra', 'Cimentación', 'Preliminar', 'Acabados', 'Urbanismo']
         },
         'last_estado': {
             'tipo': 'VARCHAR',
-            'descripcion': 'Estado anterior del proyecto',
-            'sinonimos': ['estado anterior', 'último estatus', 'condición previa', 'estado histórico']
+            'descripcion': 'Último estado registrado del proyecto (Cancelado, TVE, Construcción, Paralizado, TE, Preventa, Rediseñado, Proyectado). TE = Terminado y Entregado, TVE = Terminado, Vendido y Entregado. Úsalo junto con estado para análisis de transiciones.',
+            'sinonimos': ['estado anterior', 'último estatus', 'condición previa', 'estado histórico', 'ultimo estado', 'último estado'],
+            'valores_completos': ['Cancelado', 'TVE', 'Construcción', 'Paralizado', 'TE', 'Preventa', 'Rediseñado', 'Proyectado']
         },
         
         # Rangos y clasificaciones de precio
@@ -2277,7 +2309,8 @@ RECOMENDACIÓN CRÍTICA:
                 pass
 
         # 11b) Oferta por tipo de vivienda (VIP, VIS, No VIS) - Definición estricta sin filtros extra
-        if "oferta" in texto and any(t in texto for t in ["vip", "vis", "no vis"]):
+        # Saltar si hay intención de agrupación
+        if "oferta" in texto and any(t in texto for t in ["vip", "vis", "no vis"]) and not any(x in texto for x in [' por ', ' segun ', ' según ', ' cada ', ' agrupado ', ' distribucion ', ' distribución ', ' desglosado ', ' desglose ']):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
@@ -2671,6 +2704,9 @@ RECOMENDACIÓN CRÍTICA:
                 'destinos': 'destino_etapa',
                 'last_estado': 'last_estado',
                 'ultimo_estado': 'last_estado',
+                'último_estado': 'last_estado',
+                'ultimo estado': 'last_estado',
+                'último estado': 'last_estado',
                 'nuevorango_pre': 'nuevorango_pre',
                 'nuevo_rango': 'nuevorango_pre',
                 'rangos_decreto_pre': 'rangos_decreto_pre',
