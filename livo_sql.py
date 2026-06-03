@@ -1499,7 +1499,7 @@ RECOMENDACIÓN CRÍTICA:
                 except Exception: pass
 
         # 0b) Ventas totales - PRIORIDAD MÁXIMA para preguntas comunes
-        if ("cuantas" in texto or "cuántas" in texto or "cuantos" in texto or "cuántos" in texto) and ("vendido" in texto or "vendidas" in texto or "vender" in texto or "se han vendido" in texto):
+        if ("cuales" in texto or "cuáles" in texto or "cuantas" in texto or "cuántas" in texto or "cuantos" in texto or "cuántos" in texto) and ("vendido" in texto or "vendidas" in texto or "vender" in texto or "se han vendido" in texto):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
@@ -3507,22 +3507,27 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         
         # EXCEPCIÓN CONCEPTUAL: Si la pregunta es teórica, legal o conceptual (e.g., "¿Qué es...?", "¿Cómo funciona...?")
         # se debe responder con el LLM (Groq) directamente en lugar de intentar generar SQL para DuckDB.
-        conceptos_keywords = [
-            'que es', 'que son', 'cómo funciona', 'como funciona',
-            'diferencia', 'cual es la funcion', 'cual es la función', 'para que sirve', 'para qué sirve',
-            'como solicitar', 'cómo solicitar', 'como postularse', 'cómo postularse', 'explicar', 'explicame',
-            'camacol', 'coordenada urbana', 'mi casa ya', 'subsidio', 'casa', 'vivienda de interes',
-            'vivienda de interes social', 'vivienda de interes prioritario',
-            'ministerio de vivienda', 'ley de vivienda', 'programa', 'fondo nacional del ahorro'
-        ]
-        # Evitar coincidencias de subcadena falsas (ej: "casa" en "Casanare" o "Boyacá_Casanare", "vis" en "division")
-        for kw in conceptos_keywords:
-            if len(kw) <= 5 or kw in ['subsidio', 'programa', 'explicar', 'diferencia']:
-                if re.search(r'\b' + re.escape(kw) + r'\b', texto):
-                    return False
-            else:
-                if kw in texto:
-                    return False
+        # EXCEPCIÓN: Si la pregunta tiene "cuales son" + palabras de datos (unidades, vendidas, etc.), es una pregunta LIVO
+        if any(kw in texto for kw in ['unidades', 'vendidas', 'vendido', 'ventas', 'oferta', 'lanzamientos', 'iniciaciones', 'entregadas']):
+            # Si tiene palabras de datos, no tratar como conceptual aunque tenga "que es" o "que son"
+            pass
+        else:
+            conceptos_keywords = [
+                'que es', 'que son', 'cómo funciona', 'como funciona',
+                'diferencia', 'cual es la funcion', 'cual es la función', 'para que sirve', 'para qué sirve',
+                'como solicitar', 'cómo solicitar', 'como postularse', 'cómo postularse', 'explicar', 'explicame',
+                'camacol', 'coordenada urbana', 'mi casa ya', 'subsidio', 'casa', 'vivienda de interes',
+                'vivienda de interes social', 'vivienda de interes prioritario',
+                'ministerio de vivienda', 'ley de vivienda', 'programa', 'fondo nacional del ahorro'
+            ]
+            # Evitar coincidencias de subcadena falsas (ej: "casa" en "Casanare" o "Boyacá_Casanare", "vis" en "division")
+            for kw in conceptos_keywords:
+                if len(kw) <= 5 or kw in ['subsidio', 'programa', 'explicar', 'diferencia']:
+                    if re.search(r'\b' + re.escape(kw) + r'\b', texto):
+                        return False
+                else:
+                    if kw in texto:
+                        return False
 
         # 1. Palabras clave de ALTA CONFIANZA (específicas de LIVO/Construcción)
         alta_confianza = [
@@ -3604,14 +3609,18 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         #     print(debug_msg)
         
         # 3. Palabras clave CONCEPTUALES (que deberían ir a LLM general)
-        conceptos_keywords = [
-            'que es', 'que son', 'cómo funciona', 'como funciona', 'requisito', 'requisitos',
-            'diferencia', 'cual es la funcion', 'cual es la función', 'para que sirve', 'para qué sirve',
-            'como solicitar', 'cómo solicitar', 'como postularse', 'cómo postularse', 'explicar', 'explicame',
-            'camacol', 'coordenada urbana', 'mi casa ya', 'subsidio',
-            'ministerio de vivienda', 'ley de vivienda', 'programa', 'fondo nacional del ahorro'
-        ]
-        has_conceptual_keywords = any(kw in texto for kw in conceptos_keywords)
+        # EXCEPCIÓN: Si la pregunta tiene palabras de datos, no tratar como conceptual
+        if not any(kw in texto for kw in ['unidades', 'vendidas', 'vendido', 'ventas', 'oferta', 'lanzamientos', 'iniciaciones', 'entregadas']):
+            conceptos_keywords = [
+                'que es', 'que son', 'cómo funciona', 'como funciona', 'requisito', 'requisitos',
+                'diferencia', 'cual es la funcion', 'cual es la función', 'para que sirve', 'para qué sirve',
+                'como solicitar', 'cómo solicitar', 'como postularse', 'cómo postularse', 'explicar', 'explicame',
+                'camacol', 'coordenada urbana', 'mi casa ya', 'subsidio',
+                'ministerio de vivienda', 'ley de vivienda', 'programa', 'fondo nacional del ahorro'
+            ]
+            has_conceptual_keywords = any(kw in texto for kw in conceptos_keywords)
+        else:
+            has_conceptual_keywords = False
 
         # Decision logic:
         # If it has high-confidence data keywords, it's LIVO.
@@ -5251,11 +5260,11 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
     def _analisis_macro_sectorial(self, sql: str) -> Optional[str]:
         """Sugiere correlaciones con variables macroeconómicas (Razonamiento Multi-Fuente)."""
         if "cuenta = 'Ventas'" in sql:
-            return "📉 **Correlación Macro:** Las ventas de vivienda presentan históricamente una correlación inversa con las tasas de interés hipotecarias y el desempleo. Se sugiere cruzar este dato con el reporte de 'Tasas de Interés' y 'Mercado Laboral'."
+            return " **Correlación Macro:** Las ventas de vivienda presentan históricamente una correlación inversa con las tasas de interés hipotecarias y el desempleo. Se sugiere cruzar este dato con el reporte de 'Tasas de Interés' y 'Mercado Laboral'."
         if "cuenta = 'Iniciaciones'" in sql:
-            return "🏗️ **Correlación Macro:** Las iniciaciones suelen seguir el comportamiento del PIB de Edificaciones con un rezago de 1-2 trimestres."
+            return " **Correlación Macro:** Las iniciaciones suelen seguir el comportamiento del PIB de Edificaciones con un rezago de 1-2 trimestres."
         if "precio" in sql.lower() or "valor" in sql.lower():
-            return "💲 **Correlación Macro:** Los precios de vivienda están influenciados por el ICCV (Índice de Costos de Construcción) y la inflación (IPC)."
+            return " **Correlación Macro:** Los precios de vivienda están influenciados por el ICCV (Índice de Costos de Construcción) y la inflación (IPC)."
         return None
 
     def _auditar_calidad_datos(self, sql: str, result: list, columns: list) -> Optional[str]:
