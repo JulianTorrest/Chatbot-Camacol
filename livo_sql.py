@@ -2420,9 +2420,13 @@ RECOMENDACIÓN CRÍTICA:
             else:
                 filtros.append(f"tipo_vivienda IN ({', '.join(tipos_interes)})")
                 # Si hay múltiples tipos o intención de comparar, preparar agrupación
-                if len(tipos_interes) > 1 or any(x in texto for x in ['comparar', 'vs', 'diferencia', 'distribucion']):
+                if len(tipos_interes) > 1 or any(x in texto for x in ['comparar', 'vs', 'diferencia', 'distribucion', 'agrupado por', 'por vis', 'por vip', 'por no vis']):
                     if "tipo_vivienda" not in group_by_cols:
                         group_by_cols.append("tipo_vivienda")
+        elif any(x in texto for x in ['agrupado por tipo', 'por tipo de vivienda', 'por vis', 'por vip', 'por no vis']):
+            # Si se menciona agrupación por tipo pero no se detectaron tipos específicos, agregar agrupación
+            if "tipo_vivienda" not in group_by_cols:
+                group_by_cols.append("tipo_vivienda")
 
         # 4. Cuenta (Estado contable)
         cuentas_map = {
