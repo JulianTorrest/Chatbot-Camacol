@@ -2662,7 +2662,28 @@ RECOMENDACIÓN CRÍTICA:
                 'firma': 'compania_constructora',
                 'firmas': 'compania_constructora',
                 'cuenta': 'cuenta',
-                'cuentas': 'cuenta'
+                'cuentas': 'cuenta',
+                'uso_etapa': 'uso_etapa',
+                'uso': 'uso_etapa',
+                'usos': 'uso_etapa',
+                'destino_etapa': 'destino_etapa',
+                'destino': 'destino_etapa',
+                'destinos': 'destino_etapa',
+                'last_estado': 'last_estado',
+                'ultimo_estado': 'last_estado',
+                'nuevorango_pre': 'nuevorango_pre',
+                'nuevo_rango': 'nuevorango_pre',
+                'rangos_decreto_pre': 'rangos_decreto_pre',
+                'rango_decreto': 'rangos_decreto_pre',
+                'rango_minviv': 'rango_minviv',
+                'rango_min_vivienda': 'rango_minviv',
+                'rango_ppm2': 'rango_ppm2',
+                'rango_ppm': 'rango_ppm2',
+                'rango_area': 'rango_area',
+                'rango_metros': 'rango_area',
+                'am_capital': 'AM_capital',
+                'aglomeracion': 'AM_capital',
+                'area_metropolitana': 'AM_capital'
             }
             
             for key, col in agrupacion_map.items():
