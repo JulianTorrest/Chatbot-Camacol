@@ -966,6 +966,12 @@ RECOMENDACIÓN CRÍTICA:
         # Detección de operación PRIMERO para evitar que "valor máximo" detecte "valor" como métrica
         op_funcion = "SUM"
         
+        debug_op_msg = f"[DEBUG _generar_sql_sin_llm] Detectando op_funcion para: {texto}"
+        if STREAMLIT_AVAILABLE:
+            st.text(debug_op_msg)
+        else:
+            print(debug_op_msg)
+        
         # Palabras clave de entidades para decidir si "mayor" es un cálculo de MAX o un RANKING/Top
         entidades_agrupacion = ['constructora', 'constructoras', 'empresa', 'empresas', 'firma', 'firmas', 'proyecto', 'proyectos', 'departamento', 'departamentos', 'ciudad', 'ciudades', 'regional', 'regionales', 'estrato', 'estratos', 'tipo', 'tipos', 'segmento', 'segmentos', 'zona', 'zonas', 'sector', 'sectores', 'barrio', 'barrios']
         
@@ -995,6 +1001,11 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "PROMEDIO_PONDERADO"
         elif any(x in texto for x in ['crecimiento', 'crecieron', 'variacion', 'variación', 'cambio', 'diferencia', 'frente a', 'comparado con']):
             op_funcion = "VARIACION"
+            debug_op_msg2 = f"[DEBUG _generar_sql_sin_llm] VARIACION detectado, op_funcion={op_funcion}"
+            if STREAMLIT_AVAILABLE:
+                st.text(debug_op_msg2)
+            else:
+                print(debug_op_msg2)
         elif any(x in texto for x in ['conteo de valores unicos', 'conteo de valores únicos', 'distinct_count']):
             op_funcion = "DISTINCT_COUNT"
         elif any(x in texto for x in ['moda', 'mode', 'más frecuente', 'valor mas frecuente', 'valor más frecuente', 'frecuente']):
