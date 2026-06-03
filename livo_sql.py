@@ -1343,47 +1343,44 @@ RECOMENDACIÓN CRÍTICA:
         tiene_mes = any(m in texto for m in meses_especificos)
 
         if "oferta" in texto:
-            if anio_match:
-                anio = int(anio_match.group(1))
-                region = self._extraer_region_general(texto)
-                if region:
-                    region_cond = self._condicion_region_general(region)
-                    
-                    # Detectar si hay múltiples regiones
-                    es_multiple_regiones = region and '|' in region
-                    
-                    # Si hay mes específico, usar filtro temporal de rango y GROUP BY regional si hay múltiples regiones
-                    if tiene_mes:
-                        # Usar el filtro_temporal que ya se calculó (rango de fechas)
-                        if es_multiple_regiones:
-                            sql = (
-                                f"SELECT regional, {metrica_sql} AS {alias_sql}_oferta "
-                                "FROM livo "
-                                f"WHERE cuenta = 'Oferta' "
-                                f"AND {region_cond} "
-                                f"{filtro_temporal} "
-                                "AND uso_etapa IN ('Casa', 'Apartamento') "
-                                "AND destino_etapa = 'Venta' "
-                                "GROUP BY regional "
-                                "ORDER BY {alias_sql}_oferta DESC"
-                            )
-                        else:
-                            sql = (
-                                f"SELECT {metrica_sql} AS {alias_sql}_oferta "
-                                "FROM livo "
-                                f"WHERE cuenta = 'Oferta' "
-                                f"AND {region_cond} "
-                                f"{filtro_temporal} "
-                                "AND uso_etapa IN ('Casa', 'Apartamento') "
-                                "AND destino_etapa = 'Venta'"
-                            )
-                        try:
-                            print(f"[DEBUG LIVO reglas] SQL generado (Oferta con mes específico): {sql}")
-                            return sql
-                        except Exception:
-                            pass
-                    # Si no hay mes específico, usar lógica original (promedio y cierre del año)
+            region = self._extraer_region_general(texto)
+            if region:
+                region_cond = self._condicion_region_general(region)
+                
+                # Detectar si hay múltiples regiones
+                es_multiple_regiones = region and '|' in region
+                
+                # Si hay mes específico (con o sin año), usar filtro temporal de rango y GROUP BY regional si hay múltiples regiones
+                if tiene_mes and filtro_temporal:
+                    if es_multiple_regiones:
+                        sql = (
+                            f"SELECT regional, {metrica_sql} AS {alias_sql}_oferta "
+                            "FROM livo "
+                            f"WHERE cuenta = 'Oferta' "
+                            f"AND {region_cond} "
+                            f"{filtro_temporal} "
+                            "AND uso_etapa IN ('Casa', 'Apartamento') "
+                            "AND destino_etapa = 'Venta' "
+                            "GROUP BY regional "
+                            "ORDER BY {alias_sql}_oferta DESC"
+                        )
                     else:
+                        sql = (
+                            f"SELECT {metrica_sql} AS {alias_sql}_oferta "
+                            "FROM livo "
+                            f"WHERE cuenta = 'Oferta' "
+                            f"AND {region_cond} "
+                            f"{filtro_temporal} "
+                            "AND uso_etapa IN ('Casa', 'Apartamento') "
+                            "AND destino_etapa = 'Venta'"
+                        )
+                    try:
+                        print(f"[DEBUG LIVO reglas] SQL generado (Oferta con mes específico): {sql}")
+                        return sql
+                    except Exception:
+                        pass
+                # Si hay año pero no mes específico, usar lógica original (promedio y cierre del año)
+                elif anio_match:
                         # SQL para Promedio y Cierre
                         sql = f"""
                         WITH mensual AS (
@@ -1411,15 +1408,72 @@ RECOMENDACIÓN CRÍTICA:
                               AND uso_etapa IN ('Casa', 'Apartamento')
                         )
                         SELECT 
-                            CAST(p.val AS INTEGER) as "Oferta Promedio {anio}", 
-                            CAST(c.val AS INTEGER) as "Oferta Cierre {anio}"
-                        FROM promedio p, cierre c
+                            CAST(promedio.val AS INTEGER) as "Promedio Mensual {anio}",
+                            CAST(cierre.val AS INTEGER) as "Cierre {anio}"
+                        FROM promedio, cierre
                         """
                         try:
-                            print(f"[DEBUG LIVO reglas] SQL generado (Oferta Stock Anual Completo): {sql}")
+                            print(f"[DEBUG LIVO reglas] SQL generado (Oferta con año): {sql}")
                             return sql
                         except Exception:
                             pass
+
+        # --- LÓGICA GENERAL PARA TODAS LAS CUENTAS CON FILTRO TEMPORAL ESPECÍFICO ---
+        # Esta lógica aplica a Ventas, Lanzamientos, Iniciaciones, Entregadas, Renuncias, Saldo que inicia, Paralizado, Culminadas
+        # cuando hay mes específico y múltiples regiones
+        if tiene_mes and filtro_temporal:
+            # Detectar tipo de cuenta
+            cuenta_calculo = None
+            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): 
+                cuenta_calculo = 'Lanzamientos'
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): 
+                cuenta_calculo = 'Iniciaciones'
+            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): 
+                cuenta_calculo = 'Entregadas'
+            elif any(x in texto for x in ['vendidas', 'vendido', 'vender', 'se han vendido']): 
+                cuenta_calculo = 'Ventas'
+            elif any(x in texto for x in ['paralizado', 'paralizada', 'obras detenidas', 'suspendidas']): 
+                cuenta_calculo = 'Paralizado'
+            elif any(x in texto for x in ['renuncias', 'renuncia', 'desistimientos', 'cancelaciones']): 
+                cuenta_calculo = 'Renuncias'
+            elif any(x in texto for x in ['saldo', 'saldo que inicia', 'saldo inicial']): 
+                cuenta_calculo = 'Saldo que inicia'
+            elif any(x in texto for x in ['culminadas', 'culminada', 'obra terminada', 'construccion completa']): 
+                cuenta_calculo = 'Culminadas'
+            
+            if cuenta_calculo:
+                region = self._extraer_region_general(texto)
+                if region:
+                    region_cond = self._condicion_region_general(region)
+                    es_multiple_regiones = region and '|' in region
+                    
+                    if es_multiple_regiones:
+                        sql = (
+                            f"SELECT regional, {metrica_sql} AS {alias_sql}_{cuenta_calculo.lower().replace(' ', '_')} "
+                            "FROM livo "
+                            f"WHERE cuenta = '{cuenta_calculo}' "
+                            f"AND {region_cond} "
+                            f"{filtro_temporal} "
+                            "AND uso_etapa IN ('Casa', 'Apartamento') "
+                            "AND destino_etapa = 'Venta' "
+                            "GROUP BY regional "
+                            f"ORDER BY {alias_sql}_{cuenta_calculo.lower().replace(' ', '_')} DESC"
+                        )
+                    else:
+                        sql = (
+                            f"SELECT {metrica_sql} AS {alias_sql}_{cuenta_calculo.lower().replace(' ', '_')} "
+                            "FROM livo "
+                            f"WHERE cuenta = '{cuenta_calculo}' "
+                            f"AND {region_cond} "
+                            f"{filtro_temporal} "
+                            "AND uso_etapa IN ('Casa', 'Apartamento') "
+                            "AND destino_etapa = 'Venta'"
+                        )
+                    try:
+                        print(f"[DEBUG LIVO reglas] SQL generado ({cuenta_calculo} con mes específico): {sql}")
+                        return sql
+                    except Exception:
+                        pass
 
         # --- TIER 1: REGLAS DE NEGOCIO INDEPENDIENTES Y ESPECÍFICAS ---
         # Estas reglas tienen lógica de negocio implícita (ej: filtrar por vivienda para venta)
