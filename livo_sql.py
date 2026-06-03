@@ -1196,11 +1196,55 @@ RECOMENDACIÓN CRÍTICA:
             'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
             'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
         }
-        for mes_nombre, mes_num in meses_map_regex.items():
-            if mes_nombre in texto:
-                mes_filtro = f" AND CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER) = {mes_num}"
-                mes_nombre_detectado = mes_nombre
-                break
+        
+        # NUEVO: Detectar múltiples periodos temporales separados por conectores
+        conectores_temporales = [' y ', ' e ', ' o ']
+        texto_lower = texto.lower()
+        multiple_periodos = False
+        periodos_encontrados = []
+        
+        for conector in conectores_temporales:
+            if conector in texto_lower:
+                partes = texto_lower.split(conector)
+                for parte in partes:
+                    # Detectar mes-año en cada parte (ej: "abril 2025")
+                    mes_match = re.search(r'(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s*(20[0-9]{2})', parte)
+                    if mes_match:
+                        mes_nombre = mes_match.group(1)
+                        anio = mes_match.group(2)
+                        mes_num = meses_map_regex.get(mes_nombre, 1)
+                        fecha_inicio = f"{anio}{mes_num:02d}01"
+                        fecha_fin = f"{anio}{mes_num:02d}32"
+                        periodos_encontrados.append(f"(fecha >= {fecha_inicio} AND fecha < {fecha_fin})")
+                        multiple_periodos = True
+                    # Detectar formato corto (ej: "abr-25")
+                    elif re.search(r'(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)-(\d{2})', parte):
+                        periodo_match = re.search(r'(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)-(\d{2})', parte)
+                        mes_abr = periodo_match.group(1)
+                        anio_abr = periodo_match.group(2)
+                        mes_map_abr = {'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+                                      'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'}
+                        mes_num = mes_map_abr.get(mes_abr, '01')
+                        anio_num = f"20{anio_abr}"
+                        fecha_inicio = f"{anio_num}{mes_num}01"
+                        fecha_fin = f"{anio_num}{mes_num}32"
+                        periodos_encontrados.append(f"(fecha >= {fecha_inicio} AND fecha < {fecha_fin})")
+                        multiple_periodos = True
+                
+                if len(periodos_encontrados) > 1:
+                    # Unir periodos con OR
+                    filtro_temporal = f" AND ({' OR '.join(periodos_encontrados)})"
+                    anio_filtro = ""  # Limpiar para no duplicar
+                    mes_filtro = ""  # Limpiar para no duplicar
+                    break
+        
+        # Si no hay múltiples periodos, usar lógica original
+        if not multiple_periodos:
+            for mes_nombre, mes_num in meses_map_regex.items():
+                if mes_nombre in texto:
+                    mes_filtro = f" AND CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER) = {mes_num}"
+                    mes_nombre_detectado = mes_nombre
+                    break
         
         # Detección de formato mes-año (ej: "ene-26", "feb-26")
         periodo_match = re.search(r"(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)-(\d{2})", texto)
@@ -2811,7 +2855,11 @@ RECOMENDACIÓN CRÍTICA:
         return None
 
     def _extraer_region_general(self, texto_local: str) -> Optional[str]:
-        """Extrae región usando lista conocida (más robusto que regex "en ...")"""
+        """Extrae región usando lista conocida (más robusto que regex "en ...").
+        
+        Ahora soporta múltiples regiones separadas por conectores como "y", "e", "o".
+        Retorna una lista de regiones o una sola región si es única.
+        """
         ubicaciones = [
             'bogota d.c.', 'bogota', 'antioquia', 'valle del cauca', 'valle',
             'atlantico', 'cundinamarca', 'bolivar', 'santander', 'norte de santander',
@@ -2828,6 +2876,24 @@ RECOMENDACIÓN CRÍTICA:
         # Ordenar por longitud descendente para coincidir "valle del cauca" antes que "valle"
         ubicaciones.sort(key=len, reverse=True)
         
+        # Detectar múltiples regiones separadas por conectores
+        # Conectores: " y ", " e ", " o "
+        conectores = [' y ', ' e ', ' o ']
+        texto_lower = texto_local.lower()
+        for conector in conectores:
+            if conector in texto_lower:
+                partes = texto_lower.split(conector)
+                regiones_encontradas = []
+                for parte in partes:
+                    for ubicacion in ubicaciones:
+                        if re.search(r'\b' + re.escape(ubicacion) + r'\b', parte, re.IGNORECASE):
+                            regiones_encontradas.append(ubicacion)
+                            break
+                if len(regiones_encontradas) > 1:
+                    # Retornar las regiones unidas con "&" para el formato de la base de datos
+                    return ' & '.join(regiones_encontradas)
+        
+        # Si no hay múltiples regiones, buscar una sola
         for ubicacion in ubicaciones:
             if re.search(r'\b' + re.escape(ubicacion) + r'\b', texto_local):
                 return ubicacion
