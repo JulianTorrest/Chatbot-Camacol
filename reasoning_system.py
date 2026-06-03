@@ -524,13 +524,10 @@ class ReasoningSystem:
             if re.match(pattern, question):
                 return QuestionType.INCOMPLETE
         
-        # PRIORIDAD CRÍTICA: Si falta account_type (cuenta), siempre necesita clarificación
-        if 'account_type' in missing_elements:
-            return QuestionType.NEEDS_CLARIFICATION
-        
-        # --- MEJORA: Asumir nivel nacional si no se especifica ubicación ---
-        # No consideramos 'location' como un elemento faltante bloqueante.
-        essential_missing = [e for e in missing_elements if e != 'location']
+        # --- MEJORA: Asumir valores por defecto sin bloquear preguntas ---
+        # No consideramos 'location', 'account_type', 'operation', 'housing_type' como elementos faltantes bloqueantes.
+        non_blocking_elements = ['location', 'account_type', 'operation', 'housing_type']
+        essential_missing = [e for e in missing_elements if e not in non_blocking_elements]
         
         # Si faltan más de 3 elementos esenciales (sin contar ubicación)
         if len(essential_missing) > 3:
@@ -573,12 +570,13 @@ class ReasoningSystem:
         """Genera contrapreguntas dinámicas y contextuales basadas en elementos faltantes y la pregunta original."""
         counter_questions = []
         
-        # --- Lógica para 'account_type' (CRÍTICO) ---
-        if 'account_type' in missing_elements:
-            if "comportamiento" in question:
-                counter_questions.append("Para analizar el 'comportamiento', ¿sobre qué base lo hacemos? (ej: ventas, iniciaciones, lanzamientos, oferta).")
-            else:
-                counter_questions.append("¿Te refieres a unidades vendidas, iniciadas, lanzadas o en oferta?")
+        # --- Lógica para 'account_type' ---
+        # NO preguntar por tipo de cuenta - asumir valor por defecto (Ventas)
+        # if 'account_type' in missing_elements:
+        #     if "comportamiento" in question:
+        #         counter_questions.append("Para analizar el 'comportamiento', ¿sobre qué base lo hacemos? (ej: ventas, iniciaciones, lanzamientos, oferta).")
+        #     else:
+        #         counter_questions.append("¿Te refieres a unidades vendidas, iniciadas, lanzadas o en oferta?")
         
         # --- Lógica para 'metric' ---
         if 'metric' in missing_elements:
