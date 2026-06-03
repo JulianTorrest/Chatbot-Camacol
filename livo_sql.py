@@ -1995,7 +1995,19 @@ RECOMENDACIÓN CRÍTICA:
 
         # 0d) Análisis de Variación / Crecimiento (Comparación entre periodos)
         if op_funcion == "VARIACION":
+            debug_var_msg = f"[DEBUG VARIACION] Entrando a lógica VARIACION con op_funcion={op_funcion}"
+            if STREAMLIT_AVAILABLE:
+                st.text(debug_var_msg)
+            else:
+                print(debug_var_msg)
+            
             anios = re.findall(r"(20[0-9]{2})", texto)
+            debug_var_msg2 = f"[DEBUG VARIACION] Años encontrados: {anios}"
+            if STREAMLIT_AVAILABLE:
+                st.text(debug_var_msg2)
+            else:
+                print(debug_var_msg2)
+            
             if len(anios) == 1:
                 anios.append(str(int(anios[0]) - 1)) # Si pide un solo año, comparar con el anterior
             
@@ -2004,6 +2016,12 @@ RECOMENDACIÓN CRÍTICA:
             for m_txt, m_num in meses_map_regex.items():
                 if re.search(r'\b' + re.escape(m_txt) + r'\b', texto):
                     meses_encontrados.append((m_txt, m_num))
+            
+            debug_var_msg3 = f"[DEBUG VARIACION] Meses encontrados: {meses_encontrados}"
+            if STREAMLIT_AVAILABLE:
+                st.text(debug_var_msg3)
+            else:
+                print(debug_var_msg3)
             
             # Detectar cuenta (Ventas por defecto)
             cuenta_calculo = None  # None significa todas las cuentas
@@ -3342,7 +3360,20 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
 
         # MEJORA: Intentar primero con reglas (sin LLM) para consultas comunes
         # Esto ahorra tokens y es más rápido para preguntas estándar
+        debug_sql_msg = f"[DEBUG _generar_sql_sin_llm] Llamando con pregunta: {pregunta}"
+        if STREAMLIT_AVAILABLE:
+            st.text(debug_sql_msg)
+        else:
+            print(debug_sql_msg)
+        
         sql_reglas = self._generar_sql_sin_llm(pregunta)
+        
+        debug_sql_msg2 = f"[DEBUG _generar_sql_sin_llm] SQL generado: {sql_reglas if sql_reglas else 'None'}"
+        if STREAMLIT_AVAILABLE:
+            st.text(debug_sql_msg2)
+        else:
+            print(debug_sql_msg2)
+        
         if sql_reglas:
             print(f"Usando SQL generado por reglas (sin LLM): {sql_reglas}")
             try:
