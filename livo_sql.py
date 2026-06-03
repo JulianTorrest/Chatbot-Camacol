@@ -2605,7 +2605,9 @@ RECOMENDACIÓN CRÍTICA:
                 'empresa': 'compania_constructora',
                 'empresas': 'compania_constructora',
                 'firma': 'compania_constructora',
-                'firmas': 'compania_constructora'
+                'firmas': 'compania_constructora',
+                'cuenta': 'cuenta',
+                'cuentas': 'cuenta'
             }
             
             for key, col in agrupacion_map.items():
