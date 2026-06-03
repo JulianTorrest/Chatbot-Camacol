@@ -2390,7 +2390,7 @@ RECOMENDACIÓN CRÍTICA:
         # 4. Cuenta (Estado contable)
         cuentas_map = {
             # Saldo que inicia
-            'saldo que inicia': 'Saldo que inicia', 'saldo inicial': 'Saldo que inicia', 'inventario inicial': 'Saldo que inicia',
+            'saldo': 'Saldo que inicia', 'saldo que inicia': 'Saldo que inicia', 'saldo inicial': 'Saldo que inicia', 'inventario inicial': 'Saldo que inicia',
             'stock inicial': 'Saldo que inicia', 'unidades al inicio': 'Saldo que inicia', 'comienzo del periodo': 'Saldo que inicia',
             'saldo de arranque': 'Saldo que inicia', 'base inicial': 'Saldo que inicia', 'punto de partida': 'Saldo que inicia',
             'inventario de apertura': 'Saldo que inicia', 'stock de apertura': 'Saldo que inicia', 'unidades iniciales': 'Saldo que inicia',
