@@ -1999,12 +1999,23 @@ RECOMENDACIÓN CRÍTICA:
                     meses_encontrados.append((m_txt, m_num))
             
             # Detectar cuenta (Ventas por defecto)
-            cuenta_calculo = 'Ventas'
-            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): cuenta_calculo = 'Lanzamientos'
-            elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): cuenta_calculo = 'Oferta'
-            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): cuenta_calculo = 'Iniciaciones'
-            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): cuenta_calculo = 'Entregadas'
-            elif any(x in texto for x in ['vendidas', 'vendido', 'vender', 'se han vendido']): cuenta_calculo = 'Ventas'
+            cuenta_calculo = None  # None significa todas las cuentas
+            cuenta_filtro = ""  # Sin filtro por defecto
+            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): 
+                cuenta_calculo = 'Lanzamientos'
+                cuenta_filtro = "cuenta = 'Lanzamientos'"
+            elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): 
+                cuenta_calculo = 'Oferta'
+                cuenta_filtro = "cuenta = 'Oferta'"
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): 
+                cuenta_calculo = 'Iniciaciones'
+                cuenta_filtro = "cuenta = 'Iniciaciones'"
+            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): 
+                cuenta_calculo = 'Entregadas'
+                cuenta_filtro = "cuenta = 'Entregadas'"
+            elif any(x in texto for x in ['vendidas', 'vendido', 'vender', 'se han vendido']): 
+                cuenta_calculo = 'Ventas'
+                cuenta_filtro = "cuenta = 'Ventas'"
             
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
@@ -2023,17 +2034,23 @@ RECOMENDACIÓN CRÍTICA:
                     f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
                     f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
 
+                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
                     sql = f"""
-                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
-                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
                     SELECT curr.val as "{m1_name} {a1}", prev.val as "{m2_name} {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
                     """
                 
                 # Caso B: Comparación anual total
                 else:
+                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
                     sql = f"""
-                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
-                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE cuenta = '{cuenta_calculo}' AND {region_cond} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
                     SELECT curr.val as "Año {a1}", prev.val as "Año {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
                     """
                 
