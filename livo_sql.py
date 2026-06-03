@@ -1342,49 +1342,84 @@ RECOMENDACIÓN CRÍTICA:
                            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
         tiene_mes = any(m in texto for m in meses_especificos)
 
-        if "oferta" in texto and not tiene_mes:
+        if "oferta" in texto:
             if anio_match:
                 anio = int(anio_match.group(1))
                 region = self._extraer_region_general(texto)
                 if region:
                     region_cond = self._condicion_region_general(region)
                     
-                    # SQL para Promedio y Cierre
-                    sql = f"""
-                    WITH mensual AS (
-                        SELECT CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER) as mes, SUM(unidades) as total_mensual
-                        FROM livo
-                        WHERE cuenta = 'Oferta' 
-                          AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {anio}
-                          AND {region_cond}
-                          AND uso_etapa IN ('Casa', 'Apartamento')
-                        GROUP BY CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER)
-                    ),
-                    promedio AS (
-                        SELECT AVG(total_mensual) as val FROM mensual
-                    ),
-                    cierre AS (
-                        SELECT SUM(unidades) as val
-                        FROM livo
-                        WHERE cuenta = 'Oferta'
-                          AND fecha = (
-                              SELECT MAX(fecha) FROM livo 
-                              WHERE cuenta = 'Oferta' 
+                    # Detectar si hay múltiples regiones
+                    es_multiple_regiones = region and '|' in region
+                    
+                    # Si hay mes específico, usar filtro temporal de rango y GROUP BY regional si hay múltiples regiones
+                    if tiene_mes:
+                        # Usar el filtro_temporal que ya se calculó (rango de fechas)
+                        if es_multiple_regiones:
+                            sql = (
+                                f"SELECT regional, {metrica_sql} AS {alias_sql}_oferta "
+                                "FROM livo "
+                                f"WHERE cuenta = 'Oferta' "
+                                f"AND {region_cond} "
+                                f"{filtro_temporal} "
+                                "AND uso_etapa IN ('Casa', 'Apartamento') "
+                                "AND destino_etapa = 'Venta' "
+                                "GROUP BY regional "
+                                "ORDER BY {alias_sql}_oferta DESC"
+                            )
+                        else:
+                            sql = (
+                                f"SELECT {metrica_sql} AS {alias_sql}_oferta "
+                                "FROM livo "
+                                f"WHERE cuenta = 'Oferta' "
+                                f"AND {region_cond} "
+                                f"{filtro_temporal} "
+                                "AND uso_etapa IN ('Casa', 'Apartamento') "
+                                "AND destino_etapa = 'Venta'"
+                            )
+                        try:
+                            print(f"[DEBUG LIVO reglas] SQL generado (Oferta con mes específico): {sql}")
+                            return sql
+                        except Exception:
+                            pass
+                    # Si no hay mes específico, usar lógica original (promedio y cierre del año)
+                    else:
+                        # SQL para Promedio y Cierre
+                        sql = f"""
+                        WITH mensual AS (
+                            SELECT CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER) as mes, SUM(unidades) as total_mensual
+                            FROM livo
+                            WHERE cuenta = 'Oferta' 
                               AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {anio}
-                          )
-                          AND {region_cond}
-                          AND uso_etapa IN ('Casa', 'Apartamento')
-                    )
-                    SELECT 
-                        CAST(p.val AS INTEGER) as "Oferta Promedio {anio}", 
-                        CAST(c.val AS INTEGER) as "Oferta Cierre {anio}"
-                    FROM promedio p, cierre c
-                    """
-                    try:
-                        print(f"[DEBUG LIVO reglas] SQL generado (Oferta Stock Anual Completo): {sql}")
-                        return sql
-                    except Exception:
-                        pass
+                              AND {region_cond}
+                              AND uso_etapa IN ('Casa', 'Apartamento')
+                            GROUP BY CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER)
+                        ),
+                        promedio AS (
+                            SELECT AVG(total_mensual) as val FROM mensual
+                        ),
+                        cierre AS (
+                            SELECT SUM(unidades) as val
+                            FROM livo
+                            WHERE cuenta = 'Oferta'
+                              AND fecha = (
+                                  SELECT MAX(fecha) FROM livo 
+                                  WHERE cuenta = 'Oferta' 
+                                  AND CAST(LEFT(CAST(fecha AS VARCHAR), 4) AS INTEGER) = {anio}
+                              )
+                              AND {region_cond}
+                              AND uso_etapa IN ('Casa', 'Apartamento')
+                        )
+                        SELECT 
+                            CAST(p.val AS INTEGER) as "Oferta Promedio {anio}", 
+                            CAST(c.val AS INTEGER) as "Oferta Cierre {anio}"
+                        FROM promedio p, cierre c
+                        """
+                        try:
+                            print(f"[DEBUG LIVO reglas] SQL generado (Oferta Stock Anual Completo): {sql}")
+                            return sql
+                        except Exception:
+                            pass
 
         # --- TIER 1: REGLAS DE NEGOCIO INDEPENDIENTES Y ESPECÍFICAS ---
         # Estas reglas tienen lógica de negocio implícita (ej: filtrar por vivienda para venta)
@@ -1535,40 +1570,79 @@ RECOMENDACIÓN CRÍTICA:
         if "rotacion" in texto or "rotación" in texto:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
+            es_multiple_regiones = region and '|' in region
             
             # SQL para calcular rotación (Meses de oferta)
             # Fórmula: Oferta Actual / Promedio Ventas (últimos 12 meses)
-            sql = f"""
-            WITH oferta_actual AS (
-                SELECT COALESCE(SUM(unidades), 0) as oferta
-                FROM livo
-                WHERE cuenta = 'Oferta'
-                  AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
-                  AND {region_cond}
-                  AND uso_etapa IN ('Casa', 'Apartamento')
-            ),
-            ventas_12m AS (
-                SELECT CAST(SUBSTR(CAST(fecha AS VARCHAR), 1, 6) AS INTEGER) as mes_anio, SUM(unidades) as total_mensual
-                FROM livo
-                WHERE cuenta = 'Ventas'
-                  AND doce_meses = (SELECT MAX(doce_meses) FROM livo)
-                  AND {region_cond}
-                  AND uso_etapa IN ('Casa', 'Apartamento')
-                GROUP BY mes_anio
-            ),
-            ventas_promedio AS (
-                SELECT COALESCE(AVG(total_mensual), 0) as ventas_prom
-                FROM ventas_12m
-            )
-            SELECT 
-                oferta as "Oferta Actual",
-                CAST(ventas_prom AS INTEGER) as "Ventas Promedio Mensual",
-                CASE 
-                    WHEN ventas_prom = 0 THEN 0 
-                    ELSE ROUND(oferta / ventas_prom, 1) 
-                END as "Meses de Rotación"
-            FROM oferta_actual, ventas_promedio
-            """
+            if es_multiple_regiones:
+                sql = f"""
+                WITH oferta_actual AS (
+                    SELECT regional, COALESCE(SUM(unidades), 0) as oferta
+                    FROM livo
+                    WHERE cuenta = 'Oferta'
+                      AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
+                      AND {region_cond}
+                      AND uso_etapa IN ('Casa', 'Apartamento')
+                    GROUP BY regional
+                ),
+                ventas_12m AS (
+                    SELECT regional, CAST(SUBSTR(CAST(fecha AS VARCHAR), 1, 6) AS INTEGER) as mes_anio, SUM(unidades) as total_mensual
+                    FROM livo
+                    WHERE cuenta = 'Ventas'
+                      AND doce_meses = (SELECT MAX(doce_meses) FROM livo)
+                      AND {region_cond}
+                      AND uso_etapa IN ('Casa', 'Apartamento')
+                    GROUP BY regional, mes_anio
+                ),
+                ventas_promedio AS (
+                    SELECT regional, COALESCE(AVG(total_mensual), 0) as ventas_prom
+                    FROM ventas_12m
+                    GROUP BY regional
+                )
+                SELECT 
+                    regional,
+                    oferta as "Oferta Actual",
+                    CAST(ventas_prom AS INTEGER) as "Ventas Promedio Mensual",
+                    CASE 
+                        WHEN ventas_prom = 0 THEN 0 
+                        ELSE ROUND(oferta / ventas_prom, 1) 
+                    END as "Meses de Rotación"
+                FROM oferta_actual
+                JOIN ventas_promedio ON oferta_actual.regional = ventas_promedio.regional
+                ORDER BY "Meses de Rotación" DESC
+                """
+            else:
+                sql = f"""
+                WITH oferta_actual AS (
+                    SELECT COALESCE(SUM(unidades), 0) as oferta
+                    FROM livo
+                    WHERE cuenta = 'Oferta'
+                      AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
+                      AND {region_cond}
+                      AND uso_etapa IN ('Casa', 'Apartamento')
+                ),
+                ventas_12m AS (
+                    SELECT CAST(SUBSTR(CAST(fecha AS VARCHAR), 1, 6) AS INTEGER) as mes_anio, SUM(unidades) as total_mensual
+                    FROM livo
+                    WHERE cuenta = 'Ventas'
+                      AND doce_meses = (SELECT MAX(doce_meses) FROM livo)
+                      AND {region_cond}
+                      AND uso_etapa IN ('Casa', 'Apartamento')
+                    GROUP BY mes_anio
+                ),
+                ventas_promedio AS (
+                    SELECT COALESCE(AVG(total_mensual), 0) as ventas_prom
+                    FROM ventas_12m
+                )
+                SELECT 
+                    oferta as "Oferta Actual",
+                    CAST(ventas_prom AS INTEGER) as "Ventas Promedio Mensual",
+                    CASE 
+                        WHEN ventas_prom = 0 THEN 0 
+                        ELSE ROUND(oferta / ventas_prom, 1) 
+                    END as "Meses de Rotación"
+                FROM oferta_actual, ventas_promedio
+                """
             try:
                 print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Rotación): {sql}")
                 return sql
@@ -1588,6 +1662,7 @@ RECOMENDACIÓN CRÍTICA:
             "superficie promedio" in texto or "m2 promedio" in texto):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
+            es_multiple_regiones = region and '|' in region
             
             # Detectar fecha específica (ej: abril 2026 -> 20260401)
             fecha_filtro = ""
@@ -1626,26 +1701,52 @@ RECOMENDACIÓN CRÍTICA:
             # SQL para calcular precio promedio y tamaño promedio
             # Fórmula: (suma_valor / 1000) / suma_unidades = millones de pesos por unidad
             # Nota: valor en LIVO está en miles, por lo que (valor / 1000) = valor en millones
-            sql = f"""
-            WITH datos_calculo AS (
+            if es_multiple_regiones:
+                sql = f"""
+                WITH datos_calculo AS (
+                    SELECT 
+                        regional,
+                        COALESCE(SUM(valor), 0) as suma_valor,
+                        COALESCE(SUM(unidades), 0) as suma_unidades,
+                        COALESCE(SUM(area), 0) as suma_area
+                    FROM livo
+                    WHERE cuenta = '{cuenta_calculo}'
+                      AND destino_etapa = 'Venta'
+                      AND {region_cond}
+                      {fecha_filtro}
+                    GROUP BY regional
+                )
                 SELECT 
-                    COALESCE(SUM(valor), 0) as suma_valor,
-                    COALESCE(SUM(unidades), 0) as suma_unidades,
-                    COALESCE(SUM(area), 0) as suma_area
-                FROM livo
-                WHERE cuenta = '{cuenta_calculo}'
-                  AND destino_etapa = 'Venta'
-                  AND {region_cond}
-                  {fecha_filtro}
-            )
-            SELECT 
-                ROUND((suma_valor / 1000.0) / NULLIF(suma_unidades, 0), 2) as "Precio Promedio (millones de pesos)",
-                ROUND(suma_area / NULLIF(suma_unidades, 0), 2) as "Tamaño Promedio (m²)",
-                suma_valor as "Suma de Valor (en miles)",
-                suma_unidades as "Suma de Unidades",
-                suma_area as "Suma de Área"
-            FROM datos_calculo
-            """
+                    regional,
+                    ROUND((suma_valor / 1000.0) / NULLIF(suma_unidades, 0), 2) as "Precio Promedio (millones de pesos)",
+                    ROUND(suma_area / NULLIF(suma_unidades, 0), 2) as "Tamaño Promedio (m²)",
+                    suma_valor as "Suma de Valor (en miles)",
+                    suma_unidades as "Suma de Unidades",
+                    suma_area as "Suma de Área"
+                FROM datos_calculo
+                ORDER BY "Precio Promedio (millones de pesos)" DESC
+                """
+            else:
+                sql = f"""
+                WITH datos_calculo AS (
+                    SELECT 
+                        COALESCE(SUM(valor), 0) as suma_valor,
+                        COALESCE(SUM(unidades), 0) as suma_unidades,
+                        COALESCE(SUM(area), 0) as suma_area
+                    FROM livo
+                    WHERE cuenta = '{cuenta_calculo}'
+                      AND destino_etapa = 'Venta'
+                      AND {region_cond}
+                      {fecha_filtro}
+                )
+                SELECT 
+                    ROUND((suma_valor / 1000.0) / NULLIF(suma_unidades, 0), 2) as "Precio Promedio (millones de pesos)",
+                    ROUND(suma_area / NULLIF(suma_unidades, 0), 2) as "Tamaño Promedio (m²)",
+                    suma_valor as "Suma de Valor (en miles)",
+                    suma_unidades as "Suma de Unidades",
+                    suma_area as "Suma de Área"
+                FROM datos_calculo
+                """
             try:
                 print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Precio Promedio Vivienda): {sql}")
                 return sql
@@ -1711,14 +1812,28 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             if region: # Requiere región para ser específico
                 region_cond = self._condicion_region_general(region)
-                sql = (
-                    f"SELECT {metrica_sql} AS {alias_sql}_vis_sin_vip "
-                    "FROM livo "
-                    f"WHERE tipo_vivienda = 'VIS' AND {region_cond} "
-                    "AND uso_etapa IN ('Casa', 'Apartamento') "
-                    "AND destino_etapa = 'Venta'"
-                    f"{filtro_temporal}"
-                )
+                es_multiple_regiones = region and '|' in region
+                
+                if es_multiple_regiones:
+                    sql = (
+                        f"SELECT regional, {metrica_sql} AS {alias_sql}_vis_sin_vip "
+                        "FROM livo "
+                        f"WHERE tipo_vivienda = 'VIS' AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal} "
+                        "GROUP BY regional "
+                        "ORDER BY {alias_sql}_vis_sin_vip DESC"
+                    )
+                else:
+                    sql = (
+                        f"SELECT {metrica_sql} AS {alias_sql}_vis_sin_vip "
+                        "FROM livo "
+                        f"WHERE tipo_vivienda = 'VIS' AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal}"
+                    )
                 try:
                     print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (VIS sin VIP): {sql}")
                     return sql
@@ -1730,15 +1845,30 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             if region:
                 region_cond = self._condicion_region_general(region)
-                sql = (
-                    f"SELECT {metrica_sql} AS {alias_sql}_vis "
-                    "FROM livo "
-                    "WHERE tipo_vivienda IN ('VIS', 'VIP') "
-                    f"AND {region_cond} "
-                    "AND uso_etapa IN ('Casa', 'Apartamento') "
-                    "AND destino_etapa = 'Venta'"
-                    f"{filtro_temporal}"
-                )
+                es_multiple_regiones = region and '|' in region
+                
+                if es_multiple_regiones:
+                    sql = (
+                        f"SELECT regional, {metrica_sql} AS {alias_sql}_vis "
+                        "FROM livo "
+                        "WHERE tipo_vivienda IN ('VIS', 'VIP') "
+                        f"AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal} "
+                        "GROUP BY regional "
+                        "ORDER BY {alias_sql}_vis DESC"
+                    )
+                else:
+                    sql = (
+                        f"SELECT {metrica_sql} AS {alias_sql}_vis "
+                        "FROM livo "
+                        "WHERE tipo_vivienda IN ('VIS', 'VIP') "
+                        f"AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal}"
+                    )
                 try:
                     print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (VIS total): {sql}")
                     return sql
@@ -1751,14 +1881,28 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             if region:
                 region_cond = self._condicion_region_general(region)
-                sql = (
-                    f"SELECT {metrica_sql} AS {alias_sql}_no_vis "
-                    "FROM livo "
-                    f"WHERE tipo_vivienda = 'No VIS' AND {region_cond} "
-                    "AND uso_etapa IN ('Casa', 'Apartamento') "
-                    "AND destino_etapa = 'Venta'"
-                    f"{filtro_temporal}"
-                )
+                es_multiple_regiones = region and '|' in region
+                
+                if es_multiple_regiones:
+                    sql = (
+                        f"SELECT regional, {metrica_sql} AS {alias_sql}_no_vis "
+                        "FROM livo "
+                        f"WHERE tipo_vivienda = 'No VIS' AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal} "
+                        "GROUP BY regional "
+                        "ORDER BY {alias_sql}_no_vis DESC"
+                    )
+                else:
+                    sql = (
+                        f"SELECT {metrica_sql} AS {alias_sql}_no_vis "
+                        "FROM livo "
+                        f"WHERE tipo_vivienda = 'No VIS' AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal}"
+                    )
                 try:
                     print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (No VIS): {sql}")
                     return sql
@@ -1775,14 +1919,28 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             if region:
                 region_cond = self._condicion_region_general(region)
-                sql = (
-                    f"SELECT {metrica_sql} AS {alias_sql}_vip "
-                    "FROM livo "
-                    f"WHERE tipo_vivienda = 'VIP' AND {region_cond} "
-                    "AND uso_etapa IN ('Casa', 'Apartamento') "
-                    "AND destino_etapa = 'Venta'"
-                    f"{filtro_temporal}"
-                )
+                es_multiple_regiones = region and '|' in region
+                
+                if es_multiple_regiones:
+                    sql = (
+                        f"SELECT regional, {metrica_sql} AS {alias_sql}_vip "
+                        "FROM livo "
+                        f"WHERE tipo_vivienda = 'VIP' AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal} "
+                        "GROUP BY regional "
+                        "ORDER BY {alias_sql}_vip DESC"
+                    )
+                else:
+                    sql = (
+                        f"SELECT {metrica_sql} AS {alias_sql}_vip "
+                        "FROM livo "
+                        f"WHERE tipo_vivienda = 'VIP' AND {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal}"
+                    )
                 try:
                     print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (VIP): {sql}")
                     return sql
@@ -1799,14 +1957,28 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             if region:
                 region_cond = self._condicion_region_general(region)
-                sql = (
-                    f"SELECT {metrica_sql} AS {alias_sql}_totales "
-                    "FROM livo "
-                    f"WHERE {region_cond} "
-                    "AND uso_etapa IN ('Casa', 'Apartamento') "
-                    "AND destino_etapa = 'Venta'"
-                    f"{filtro_temporal}"
-                )
+                es_multiple_regiones = region and '|' in region
+                
+                if es_multiple_regiones:
+                    sql = (
+                        f"SELECT regional, {metrica_sql} AS {alias_sql}_totales "
+                        "FROM livo "
+                        f"WHERE {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal} "
+                        "GROUP BY regional "
+                        "ORDER BY {alias_sql}_totales DESC"
+                    )
+                else:
+                    sql = (
+                        f"SELECT {metrica_sql} AS {alias_sql}_totales "
+                        "FROM livo "
+                        f"WHERE {region_cond} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal}"
+                    )
                 try:
                     print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (total vivienda): {sql}")
                     return sql
@@ -1818,6 +1990,7 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             if region:
                 region_cond = self._condicion_region_general(region)
+                es_multiple_regiones = region and '|' in region
 
                 anio = _extraer_anio(texto)
                 rangos = SalarioMinimoColombiano.calcular_rangos_vivienda(anio)
@@ -1826,16 +1999,30 @@ RECOMENDACIÓN CRÍTICA:
                 vis_min_miles = rangos['VIS']['min'] // 1000
                 limite_500_miles = (salario * 500) // 1000
 
-                sql = (
-                    f"SELECT {metrica_sql} AS {alias_sql}_precio_vis_a_500_smmlv "
-                    "FROM livo "
-                    f"WHERE {region_cond} "
-                    f"AND valor >= {vis_min_miles} "
-                    f"AND valor <= {limite_500_miles} "
-                    "AND uso_etapa IN ('Casa', 'Apartamento') "
-                    "AND destino_etapa = 'Venta'"
-                    f"{filtro_temporal}"
-                )
+                if es_multiple_regiones:
+                    sql = (
+                        f"SELECT regional, {metrica_sql} AS {alias_sql}_precio_vis_a_500_smmlv "
+                        "FROM livo "
+                        f"WHERE {region_cond} "
+                        f"AND valor >= {vis_min_miles} "
+                        f"AND valor <= {limite_500_miles} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal} "
+                        "GROUP BY regional "
+                        "ORDER BY {alias_sql}_precio_vis_a_500_smmlv DESC"
+                    )
+                else:
+                    sql = (
+                        f"SELECT {metrica_sql} AS {alias_sql}_precio_vis_a_500_smmlv "
+                        "FROM livo "
+                        f"WHERE {region_cond} "
+                        f"AND valor >= {vis_min_miles} "
+                        f"AND valor <= {limite_500_miles} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal}"
+                    )
                 try:
                     print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (precio VIS-500 SMMLV): {sql}")
                     return sql
@@ -1847,20 +2034,34 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             if region:
                 region_cond = self._condicion_region_general(region)
+                es_multiple_regiones = region and '|' in region
 
                 anio = _extraer_anio(texto)
                 salario = SalarioMinimoColombiano.obtener_salario_minimo(anio)
                 limite_500_miles = (salario * 500) // 1000
 
-                sql = (
-                    f"SELECT {metrica_sql} AS {alias_sql}_precio_mayor_500_smmlv "
-                    "FROM livo "
-                    f"WHERE {region_cond} "
-                    f"AND valor > {limite_500_miles} "
-                    "AND uso_etapa IN ('Casa', 'Apartamento') "
-                    "AND destino_etapa = 'Venta'"
-                    f"{filtro_temporal}"
-                )
+                if es_multiple_regiones:
+                    sql = (
+                        f"SELECT regional, {metrica_sql} AS {alias_sql}_precio_mayor_500_smmlv "
+                        "FROM livo "
+                        f"WHERE {region_cond} "
+                        f"AND valor > {limite_500_miles} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal} "
+                        "GROUP BY regional "
+                        "ORDER BY {alias_sql}_precio_mayor_500_smmlv DESC"
+                    )
+                else:
+                    sql = (
+                        f"SELECT {metrica_sql} AS {alias_sql}_precio_mayor_500_smmlv "
+                        "FROM livo "
+                        f"WHERE {region_cond} "
+                        f"AND valor > {limite_500_miles} "
+                        "AND uso_etapa IN ('Casa', 'Apartamento') "
+                        "AND destino_etapa = 'Venta'"
+                        f"{filtro_temporal}"
+                    )
                 try:
                     print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (precio > 500 SMMLV): {sql}")
                     return sql
@@ -1874,6 +2075,9 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
             # Determinar tipo de vivienda
             tipo_filtro = ""
             if "vip" in texto:
@@ -1886,16 +2090,31 @@ RECOMENDACIÓN CRÍTICA:
                 else:
                     tipo_filtro = "AND tipo_vivienda IN ('VIS', 'VIP')"
             
-            sql = (
-                f"SELECT {metrica_sql} AS {alias_sql}_lanzamientos "
-                "FROM livo "
-                f"WHERE cuenta = 'Lanzamientos' "
-                f"AND {region_cond} "
-                f"{tipo_filtro} "
-                "AND uso_etapa IN ('Casa', 'Apartamento') "
-                "AND destino_etapa = 'Venta'"
-                f"{filtro_temporal}"
-            )
+            # Si hay múltiples regiones, agregar GROUP BY regional
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_lanzamientos "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Lanzamientos' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_lanzamientos DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_lanzamientos "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Lanzamientos' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal}"
+                )
             try:
                 print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Lanzamientos): {sql}")
                 return sql
@@ -1908,6 +2127,9 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
             # Determinar tipo de vivienda
             tipo_filtro = ""
             if "vip" in texto:
@@ -1920,18 +2142,288 @@ RECOMENDACIÓN CRÍTICA:
                 else:
                     tipo_filtro = "AND tipo_vivienda IN ('VIS', 'VIP')"
             
-            sql = (
-                f"SELECT {metrica_sql} AS {alias_sql}_iniciaciones "
-                "FROM livo "
-                f"WHERE cuenta = 'Iniciaciones' "
-                f"AND {region_cond} "
-                f"{tipo_filtro} "
-                "AND uso_etapa IN ('Casa', 'Apartamento') "
-                "AND destino_etapa = 'Venta'"
-                f"{filtro_temporal}"
-            )
+            # Si hay múltiples regiones, agregar GROUP BY regional
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_iniciaciones "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Iniciaciones' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_iniciaciones DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_iniciaciones "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Iniciaciones' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal}"
+                )
             try:
                 print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Iniciaciones): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 10) Entregadas de vivienda (VIP, VIS, No VIS o Total)
+        if ("entregadas" in texto or "entregada" in texto or "terminadas" in texto or "finalizadas" in texto) and op_funcion not in operaciones_especiales:
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
+            # Determinar tipo de vivienda
+            tipo_filtro = ""
+            if "vip" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'VIP'"
+            elif "no vis" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'No VIS'"
+            elif "vis" in texto:
+                if "sin vip" in texto:
+                    tipo_filtro = "AND tipo_vivienda = 'VIS'"
+                else:
+                    tipo_filtro = "AND tipo_vivienda IN ('VIS', 'VIP')"
+            
+            # Si hay múltiples regiones, agregar GROUP BY regional
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_entregadas "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Entregadas' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_entregadas DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_entregadas "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Entregadas' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal}"
+                )
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Entregadas): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 11) Renuncias de vivienda (VIP, VIS, No VIS o Total)
+        if ("renuncias" in texto or "renuncia" in texto or "desistimientos" in texto or "cancelaciones" in texto) and op_funcion not in operaciones_especiales:
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
+            # Determinar tipo de vivienda
+            tipo_filtro = ""
+            if "vip" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'VIP'"
+            elif "no vis" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'No VIS'"
+            elif "vis" in texto:
+                if "sin vip" in texto:
+                    tipo_filtro = "AND tipo_vivienda = 'VIS'"
+                else:
+                    tipo_filtro = "AND tipo_vivienda IN ('VIS', 'VIP')"
+            
+            # Si hay múltiples regiones, agregar GROUP BY regional
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_renuncias "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Renuncias' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_renuncias DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_renuncias "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Renuncias' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal}"
+                )
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Renuncias): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 12) Saldo que inicia de vivienda (VIP, VIS, No VIS o Total)
+        if ("saldo" in texto or "saldo que inicia" in texto or "saldo inicial" in texto) and op_funcion not in operaciones_especiales:
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
+            # Determinar tipo de vivienda
+            tipo_filtro = ""
+            if "vip" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'VIP'"
+            elif "no vis" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'No VIS'"
+            elif "vis" in texto:
+                if "sin vip" in texto:
+                    tipo_filtro = "AND tipo_vivienda = 'VIS'"
+                else:
+                    tipo_filtro = "AND tipo_vivienda IN ('VIS', 'VIP')"
+            
+            # Si hay múltiples regiones, agregar GROUP BY regional
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_saldo_inicia "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Saldo que inicia' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_saldo_inicia DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_saldo_inicia "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Saldo que inicia' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal}"
+                )
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Saldo que inicia): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 13) Paralizado de vivienda (VIP, VIS, No VIS o Total)
+        if ("paralizado" in texto or "paralizada" in texto or "obras detenidas" in texto or "suspendidas" in texto) and op_funcion not in operaciones_especiales:
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
+            # Determinar tipo de vivienda
+            tipo_filtro = ""
+            if "vip" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'VIP'"
+            elif "no vis" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'No VIS'"
+            elif "vis" in texto:
+                if "sin vip" in texto:
+                    tipo_filtro = "AND tipo_vivienda = 'VIS'"
+                else:
+                    tipo_filtro = "AND tipo_vivienda IN ('VIS', 'VIP')"
+            
+            # Si hay múltiples regiones, agregar GROUP BY regional
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_paralizado "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Paralizado' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_paralizado DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_paralizado "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Paralizado' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal}"
+                )
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Paralizado): {sql}")
+                return sql
+            except Exception:
+                pass
+
+        # 14) Culminadas de vivienda (VIP, VIS, No VIS o Total)
+        if ("culminadas" in texto or "culminada" in texto or "obra terminada" in texto or "construccion completa" in texto) and op_funcion not in operaciones_especiales:
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+            
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
+            # Determinar tipo de vivienda
+            tipo_filtro = ""
+            if "vip" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'VIP'"
+            elif "no vis" in texto:
+                tipo_filtro = "AND tipo_vivienda = 'No VIS'"
+            elif "vis" in texto:
+                if "sin vip" in texto:
+                    tipo_filtro = "AND tipo_vivienda = 'VIS'"
+                else:
+                    tipo_filtro = "AND tipo_vivienda IN ('VIS', 'VIP')"
+            
+            # Si hay múltiples regiones, agregar GROUP BY regional
+            if es_multiple_regiones:
+                sql = (
+                    f"SELECT regional, {metrica_sql} AS {alias_sql}_culminadas "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Culminadas' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal} "
+                    "GROUP BY regional "
+                    "ORDER BY {alias_sql}_culminadas DESC"
+                )
+            else:
+                sql = (
+                    f"SELECT {metrica_sql} AS {alias_sql}_culminadas "
+                    "FROM livo "
+                    f"WHERE cuenta = 'Culminadas' "
+                    f"AND {region_cond} "
+                    f"{tipo_filtro} "
+                    "AND uso_etapa IN ('Casa', 'Apartamento') "
+                    "AND destino_etapa = 'Venta'"
+                    f"{filtro_temporal}"
+                )
+            try:
+                print(f"[DEBUG LIVO reglas] SQL INDEPENDIENTE (Culminadas): {sql}")
                 return sql
             except Exception:
                 pass
@@ -2470,8 +2962,14 @@ RECOMENDACIÓN CRÍTICA:
         
         # 1. Región (Geografía)
         region = self._extraer_region_general(texto)
+        es_multiple_regiones = region and '|' in region if region else False
+        
         if region:
             filtros.append(self._condicion_region_general(region))
+            # Si hay múltiples regiones, agregar GROUP BY regional automáticamente
+            if es_multiple_regiones:
+                if "regional" not in group_by_cols:
+                    group_by_cols.append("regional")
             
         # 2. Temporalidad (Año/Fecha)
         if filtro_temporal:
@@ -4549,7 +5047,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             if avanzado: contexto_items.extend(avanzado)
 
             if contexto_items:
-                respuesta += "\n\n **Contexto LIVO:**\n" + "\n".join(contexto_items)
+                respuesta += "\n\n📝 **Contexto LIVO:**\n" + "\n".join(contexto_items)
 
             # MEJORA: Visualización Automática y Contextual
             chart_data = None
