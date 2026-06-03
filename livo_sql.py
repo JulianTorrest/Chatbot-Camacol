@@ -1359,6 +1359,15 @@ RECOMENDACIÓN CRÍTICA:
             elif any(x in texto for x in ['vendidas', 'vendido', 'vender', 'se han vendido']): 
                 cuenta_calculo = 'Ventas'
                 cuenta_filtro = "cuenta = 'Ventas'"
+            elif any(x in texto for x in ['paralizado', 'paralizada', 'obras detenidas', 'suspendidas']): 
+                cuenta_calculo = 'Paralizado'
+                cuenta_filtro = "cuenta = 'Paralizado'"
+            elif any(x in texto for x in ['renuncias', 'renuncia', 'desistimientos', 'cancelaciones']): 
+                cuenta_calculo = 'Renuncias'
+                cuenta_filtro = "cuenta = 'Renuncias'"
+            elif any(x in texto for x in ['culminadas', 'culminada', 'obra terminada', 'construccion completa']): 
+                cuenta_calculo = 'Culminadas'
+                cuenta_filtro = "cuenta = 'Culminadas'"
             
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
@@ -1568,14 +1577,33 @@ RECOMENDACIÓN CRÍTICA:
             if match_num:
                 limit = int(match_num.group(1))
             
-            # Definir métrica (por defecto Ventas último año si no se especifica oferta)
-            if "oferta" in texto:
+            # Definir métrica (por defecto Ventas último año si no se especifica)
+            cuenta_filtro = "cuenta = 'Ventas'"
+            tiempo_filtro = "AND doce_meses = (SELECT MAX(doce_meses) FROM livo)"
+            
+            if any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): 
                 cuenta_filtro = "cuenta = 'Oferta'"
-                # Para oferta usamos la fecha más reciente (stock)
                 tiempo_filtro = "AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')"
-            else:
-                # Por defecto Ventas (acumulado 12 meses)
-                cuenta_filtro = "cuenta = 'Ventas'"
+            elif any(x in texto for x in ['saldo', 'saldo que inicia', 'saldo inicial']): 
+                cuenta_filtro = "cuenta = 'Saldo que inicia'"
+                tiempo_filtro = "AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Saldo que inicia')"
+            elif any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): 
+                cuenta_filtro = "cuenta = 'Lanzamientos'"
+                tiempo_filtro = "AND doce_meses = (SELECT MAX(doce_meses) FROM livo)"
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): 
+                cuenta_filtro = "cuenta = 'Iniciaciones'"
+                tiempo_filtro = "AND doce_meses = (SELECT MAX(doce_meses) FROM livo)"
+            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): 
+                cuenta_filtro = "cuenta = 'Entregadas'"
+                tiempo_filtro = "AND doce_meses = (SELECT MAX(doce_meses) FROM livo)"
+            elif any(x in texto for x in ['paralizado', 'paralizada', 'obras detenidas']): 
+                cuenta_filtro = "cuenta = 'Paralizado'"
+                tiempo_filtro = "AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Paralizado')"
+            elif any(x in texto for x in ['renuncias', 'renuncia', 'desistimientos']): 
+                cuenta_filtro = "cuenta = 'Renuncias'"
+                tiempo_filtro = "AND doce_meses = (SELECT MAX(doce_meses) FROM livo)"
+            elif any(x in texto for x in ['culminadas', 'culminada', 'obra terminada']): 
+                cuenta_filtro = "cuenta = 'Culminadas'"
                 tiempo_filtro = "AND doce_meses = (SELECT MAX(doce_meses) FROM livo)"
             
             sql = f"""
@@ -2160,6 +2188,15 @@ RECOMENDACIÓN CRÍTICA:
             elif any(x in texto for x in ['vendidas', 'vendido', 'vender', 'se han vendido']): 
                 cuenta_calculo = 'Ventas'
                 cuenta_filtro = "cuenta = 'Ventas'"
+            elif any(x in texto for x in ['paralizado', 'paralizada', 'obras detenidas', 'suspendidas']): 
+                cuenta_calculo = 'Paralizado'
+                cuenta_filtro = "cuenta = 'Paralizado'"
+            elif any(x in texto for x in ['renuncias', 'renuncia', 'desistimientos', 'cancelaciones']): 
+                cuenta_calculo = 'Renuncias'
+                cuenta_filtro = "cuenta = 'Renuncias'"
+            elif any(x in texto for x in ['culminadas', 'culminada', 'obra terminada', 'construccion completa']): 
+                cuenta_calculo = 'Culminadas'
+                cuenta_filtro = "cuenta = 'Culminadas'"
             
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
