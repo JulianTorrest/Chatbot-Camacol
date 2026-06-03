@@ -1347,6 +1347,9 @@ RECOMENDACIÓN CRÍTICA:
             elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): 
                 cuenta_calculo = 'Oferta'
                 cuenta_filtro = "cuenta = 'Oferta'"
+            elif any(x in texto for x in ['saldo', 'saldo que inicia', 'saldo inicial']): 
+                cuenta_calculo = 'Saldo que inicia'
+                cuenta_filtro = "cuenta = 'Saldo que inicia'"
             elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): 
                 cuenta_calculo = 'Iniciaciones'
                 cuenta_filtro = "cuenta = 'Iniciaciones'"
@@ -2145,6 +2148,9 @@ RECOMENDACIÓN CRÍTICA:
             elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): 
                 cuenta_calculo = 'Oferta'
                 cuenta_filtro = "cuenta = 'Oferta'"
+            elif any(x in texto for x in ['saldo', 'saldo que inicia', 'saldo inicial']): 
+                cuenta_calculo = 'Saldo que inicia'
+                cuenta_filtro = "cuenta = 'Saldo que inicia'"
             elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): 
                 cuenta_calculo = 'Iniciaciones'
                 cuenta_filtro = "cuenta = 'Iniciaciones'"
