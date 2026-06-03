@@ -597,8 +597,9 @@ class ReasoningSystem:
                 counter_questions.append("¿Qué tipo de cálculo necesitas? (ej: un total, un promedio, un ranking).")
 
         # --- Lógica para 'location' ---
-        if 'location' in missing_elements:
-            counter_questions.append("¿Para qué ubicación geográfica necesitas esta información? (ej: Bogotá, Antioquia, o a nivel nacional).")
+        # NO preguntar por ubicación - asumir nacional por defecto para preguntas LIVO
+        # if 'location' in missing_elements:
+        #     counter_questions.append("¿Para qué ubicación geográfica necesitas esta información? (ej: Bogotá, Antioquia, o a nivel nacional).")
 
         # --- Lógica para 'time_period' ---
         if 'time_period' in missing_elements:
