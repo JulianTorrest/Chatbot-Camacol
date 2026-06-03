@@ -1307,7 +1307,103 @@ RECOMENDACIÓN CRÍTICA:
         # Estas reglas tienen lógica de negocio implícita (ej: filtrar por vivienda para venta)
         # y se ejecutan primero para las preguntas más comunes.
 
-        # 0a) Ventas totales - PRIORIDAD MÁXIMA para preguntas comunes
+        # 0a) VARIACION tiene PRIORIDAD MÁXIMA sobre ventas totales
+        # porque preguntas de crecimiento tienen palabras como "vendidas" que coinciden con ventas totales
+        if op_funcion == "VARIACION":
+            debug_var_msg = f"[DEBUG VARIACION TIER 1] Entrando a lógica VARIACION con op_funcion={op_funcion}"
+            if STREAMLIT_AVAILABLE:
+                st.text(debug_var_msg)
+            else:
+                print(debug_var_msg)
+            
+            anios = re.findall(r"(20[0-9]{2})", texto)
+            debug_var_msg2 = f"[DEBUG VARIACION TIER 1] Años encontrados: {anios}"
+            if STREAMLIT_AVAILABLE:
+                st.text(debug_var_msg2)
+            else:
+                print(debug_var_msg2)
+            
+            if len(anios) == 1:
+                anios.append(str(int(anios[0]) - 1)) # Si pide un solo año, comparar con el anterior
+            
+            # Buscar meses mencionados
+            meses_encontrados = []
+            for m_txt, m_num in meses_map_regex.items():
+                if re.search(r'\b' + re.escape(m_txt) + r'\b', texto):
+                    meses_encontrados.append((m_txt, m_num))
+            
+            debug_var_msg3 = f"[DEBUG VARIACION TIER 1] Meses encontrados: {meses_encontrados}"
+            if STREAMLIT_AVAILABLE:
+                st.text(debug_var_msg3)
+            else:
+                print(debug_var_msg3)
+            
+            # Detectar cuenta (Ventas por defecto)
+            cuenta_calculo = None  # None significa todas las cuentas
+            cuenta_filtro = ""  # Sin filtro por defecto
+            if any(x in texto for x in ['lanzamiento', 'lanzada', 'salida a ventas', 'nuevos proyectos']): 
+                cuenta_calculo = 'Lanzamientos'
+                cuenta_filtro = "cuenta = 'Lanzamientos'"
+            elif any(x in texto for x in ['oferta', 'disponible', 'stock', 'inventario']): 
+                cuenta_calculo = 'Oferta'
+                cuenta_filtro = "cuenta = 'Oferta'"
+            elif any(x in texto for x in ['iniciacion', 'iniciada', 'inicio de obra']): 
+                cuenta_calculo = 'Iniciaciones'
+                cuenta_filtro = "cuenta = 'Iniciaciones'"
+            elif any(x in texto for x in ['entrega', 'entregada', 'terminada', 'finalizada']): 
+                cuenta_calculo = 'Entregadas'
+                cuenta_filtro = "cuenta = 'Entregadas'"
+            elif any(x in texto for x in ['vendidas', 'vendido', 'vender', 'se han vendido']): 
+                cuenta_calculo = 'Ventas'
+                cuenta_filtro = "cuenta = 'Ventas'"
+            
+            region = self._extraer_region_general(texto)
+            region_cond = self._condicion_region_general(region) if region else "1=1"
+
+            # Determinar periodos (Mes-Año vs Mes-Año o Año vs Año)
+            if len(anios) >= 2:
+                a1, a2 = anios[0], anios[1] # Ej: 2026, 2025
+                
+                # Caso A: Comparación de meses específicos
+                if len(meses_encontrados) >= 1:
+                    m1_num = meses_encontrados[0][1]
+                    m2_num = meses_encontrados[1][1] if len(meses_encontrados) > 1 else m1_num
+                    m1_name = meses_encontrados[0][0].title()
+                    m2_name = meses_encontrados[1][0].title() if len(meses_encontrados) > 1 else m1_name
+                    
+                    f1_start, f1_end = f"{a1}{m1_num:02d}01", f"{a1}{m1_num:02d}32"
+                    f2_start, f2_end = f"{a2}{m2_num:02d}01", f"{a2}{m2_num:02d}32"
+
+                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                    sql = f"""
+                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND fecha >= {f1_start} AND fecha < {f1_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND fecha >= {f2_start} AND fecha < {f2_end} AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                    SELECT curr.val as "{m1_name} {a1}", prev.val as "{m2_name} {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                    """
+                
+                # Caso B: Comparación anual total
+                else:
+                    cuenta_cond_actual = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+                    cuenta_cond_anterior = f"AND {cuenta_filtro}" if cuenta_filtro else ""
+
+                    sql = f"""
+                    WITH actual AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_actual} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a1}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta'),
+                    anterior AS (SELECT {metrica_sql} as val FROM livo WHERE {region_cond} {cuenta_cond_anterior} AND LEFT(CAST(fecha AS VARCHAR), 4) = '{a2}' AND uso_etapa IN ('Casa', 'Apartamento') AND destino_etapa = 'Venta')
+                    SELECT curr.val as "Año {a1}", prev.val as "Año {a2}", (curr.val - prev.val) as "Variación Absoluta", ROUND(((curr.val - prev.val) * 100.0) / NULLIF(prev.val, 0), 2) as "Crecimiento (%)" FROM actual curr, anterior prev
+                    """
+                
+                try:
+                    # Si es oferta, no comparar totales sumados del año sino el promedio o el último corte
+                    if cuenta_calculo == 'Oferta' and len(meses_encontrados) == 0:
+                        sql = sql.replace(metrica_sql, f"COALESCE(AVG({col_metrica}), 0)")
+
+                    print(f"[DEBUG LIVO reglas TIER 1] SQL VARIACION: {sql}")
+                    return sql.strip()
+                except Exception: pass
+
+        # 0b) Ventas totales - PRIORIDAD MÁXIMA para preguntas comunes
         if ("cuantas" in texto or "cuántas" in texto or "cuantos" in texto or "cuántos" in texto) and ("vendido" in texto or "vendidas" in texto or "vender" in texto or "se han vendido" in texto):
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
