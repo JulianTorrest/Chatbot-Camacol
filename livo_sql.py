@@ -2004,6 +2004,12 @@ RECOMENDACIÓN CRÍTICA:
             except Exception:
                 pass
 
+        debug_before_var = f"[DEBUG _generar_sql_sin_llm] Antes de bloque VARIACION, op_funcion={op_funcion}"
+        if STREAMLIT_AVAILABLE:
+            st.text(debug_before_var)
+        else:
+            print(debug_before_var)
+        
         # 0d) Análisis de Variación / Crecimiento (Comparación entre periodos)
         if op_funcion == "VARIACION":
             debug_var_msg = f"[DEBUG VARIACION] Entrando a lógica VARIACION con op_funcion={op_funcion}"
