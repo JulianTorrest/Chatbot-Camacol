@@ -1261,7 +1261,7 @@ RECOMENDACIÓN CRÍTICA:
             anio_filtro = ""  # Limpiar para no duplicar
             mes_filtro = ""  # Limpiar para no duplicar
         
-        # Si hay año y mes, convertir directamente a rango de fechas
+        # Si hay año y mes, convertir directamente a rango de fechas (incluso si hay múltiples periodos)
         if anio_match and mes_nombre_detectado:
             mes_map = {'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
                       'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12',
@@ -1503,8 +1503,11 @@ RECOMENDACIÓN CRÍTICA:
             region = self._extraer_region_general(texto)
             region_cond = self._condicion_region_general(region) if region else "1=1"
             
-            # Si no hay región específica, agregar desglose por regionales
-            if not region or region in ['nacional', 'colombia', 'pais', 'todo el pais']:
+            # Detectar si hay múltiples regiones
+            es_multiple_regiones = region and '|' in region
+            
+            # Si no hay región específica o hay múltiples regiones, agregar desglose por regionales
+            if not region or region in ['nacional', 'colombia', 'pais', 'todo el pais'] or es_multiple_regiones:
                 sql = (
                     f"SELECT regional, {metrica_sql} AS {alias_sql}_ventas_totales "
                     "FROM livo "
@@ -2858,7 +2861,7 @@ RECOMENDACIÓN CRÍTICA:
         """Extrae región usando lista conocida (más robusto que regex "en ...").
         
         Ahora soporta múltiples regiones separadas por conectores como "y", "e", "o".
-        Retorna una lista de regiones o una sola región si es única.
+        Retorna una lista de regiones (separadas por |) o una sola región si es única.
         """
         ubicaciones = [
             'bogota d.c.', 'bogota', 'antioquia', 'valle del cauca', 'valle',
@@ -2890,8 +2893,8 @@ RECOMENDACIÓN CRÍTICA:
                             regiones_encontradas.append(ubicacion)
                             break
                 if len(regiones_encontradas) > 1:
-                    # Retornar las regiones unidas con "&" para el formato de la base de datos
-                    return ' & '.join(regiones_encontradas)
+                    # Retornar las regiones unidas con "|" para procesamiento posterior
+                    return '|'.join(regiones_encontradas)
         
         # Si no hay múltiples regiones, buscar una sola
         for ubicacion in ubicaciones:
@@ -2900,7 +2903,59 @@ RECOMENDACIÓN CRÍTICA:
         return None
 
     def _condicion_region_general(self, region_fragmento: str) -> str:
-        """Genera condición SQL para región."""
+        """Genera condición SQL para región.
+        
+        Si el fragmento contiene "|", genera condiciones OR para múltiples regiones.
+        Si no, usa la lógica original para una sola región.
+        """
+        # Verificar si hay múltiples regiones separadas por "|"
+        if '|' in region_fragmento:
+            regiones = region_fragmento.split('|')
+            condiciones = []
+            for region in regiones:
+                # Normalizar cada región individualmente
+                frag_norm = normalize_text(region).upper()
+                
+                # Caso especial: espacio simple "BOGOTA CUNDINAMARCA" -> "BOGOTA & CUNDINAMARCA"
+                frag_norm = frag_norm.replace('BOGOTA CUNDINAMARCA', 'BOGOTA & CUNDINAMARCA')
+                frag_norm = frag_norm.replace('CORDOBA SUCRE', 'CORDOBA & SUCRE')
+                
+                # Si es una referencia nacional, no filtrar (traer todo)
+                if frag_norm in ['NACIONAL', 'COLOMBIA', 'PAIS', 'TODO EL PAIS']:
+                    continue
+                
+                # Escapar comillas simples
+                frag_norm = frag_norm.replace("'", "''")
+                
+                # Generar condición para esta región
+                norm_depto = (
+                    "UPPER(TRANSLATE(departamento, "
+                    "'ÁÉÍÓÚÜÑáéíóúüñ', "
+                    "'AEIOUUNAEIOUUN'))"
+                )
+                norm_regional = (
+                    "UPPER(TRANSLATE(regional, "
+                    "'ÁÉÍÓÚÜÑáéíóúüñ', "
+                    "'AEIOUUNAEIOUUN'))"
+                )
+                norm_ciudad = (
+                    "UPPER(TRANSLATE(ciudad, "
+                    "'ÁÉÍÓÚÜÑáéíóúüñ', "
+                    "'AEIOUUNAEIOUUN'))"
+                )
+                
+                condiciones.append(
+                    f"({norm_depto} LIKE '%{frag_norm}%' "
+                    f"OR {norm_regional} LIKE '%{frag_norm}%' "
+                    f"OR {norm_ciudad} LIKE '%{frag_norm}%')"
+                )
+            
+            if condiciones:
+                return " OR ".join(condiciones)
+            else:
+                return "1=1"
+        
+        # Lógica original para una sola región
         # Para evitar problemas de tildes, normalizamos ambos lados.
         # 1) Normalizamos el fragmento en Python (sin tildes, minúsculas)
         frag_norm = normalize_text(region_fragmento).replace(' y ', ' & ').replace(' - ', ' & ').upper()
@@ -5212,7 +5267,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             res = self.conn.execute(sql_dist).fetchone()
             if res:
                 medio, alto, lujo = res
-                return f"📏 **Rangos No VIS:** Medio (135-300 SMMLV): {medio or 0:.0f}% | Alto (300-500 SMMLV): {alto or 0:.0f}% | Lujo (>500 SMMLV): {lujo or 0:.0f}%."
+                return f" **Rangos No VIS:** Medio (135-300 SMMLV): {medio or 0:.0f}% | Alto (300-500 SMMLV): {alto or 0:.0f}% | Lujo (>500 SMMLV): {lujo or 0:.0f}%."
         except:
             pass
         return None
