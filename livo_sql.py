@@ -3251,6 +3251,13 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         has_periodo = any(re.search(r'\b' + re.escape(per) + r'\b', texto) for per in periodos)
         has_cuenta = any(re.search(r'\b' + re.escape(cta) + r'\b', texto) for cta in cuentas)
         
+        # DEBUG: Imprimir estado de detección
+        print(f"[DEBUG es_pregunta_livo] texto: {texto}")
+        print(f"[DEBUG es_pregunta_livo] has_alta_confianza_data: {has_alta_confianza_data}")
+        print(f"[DEBUG es_pregunta_livo] has_media_confianza: {has_media_confianza}")
+        print(f"[DEBUG es_pregunta_livo] has_operacion: {has_operacion}")
+        print(f"[DEBUG es_pregunta_livo] has_periodo: {has_periodo}")
+        
         # 3. Palabras clave CONCEPTUALES (que deberían ir a LLM general)
         conceptos_keywords = [
             'que es', 'que son', 'cómo funciona', 'como funciona', 'requisito', 'requisitos',
@@ -3264,6 +3271,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         # Decision logic:
         # If it has high-confidence data keywords, it's LIVO.
         if has_alta_confianza_data:
+            print(f"[DEBUG es_pregunta_livo] RETORNO TRUE por alta_confianza")
             return True
         
         # If it has contextual data keywords AND an operation/region/period/account, it's LIVO.
