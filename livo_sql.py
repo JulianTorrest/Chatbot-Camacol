@@ -1660,7 +1660,8 @@ RECOMENDACIÓN CRÍTICA:
                     pass
 
         # 3) Unidades totales de vivienda No VIS por región
-        if "no vis" in texto and "unidades" in texto:
+        # Saltar si hay intención de agrupación por tipo
+        if "no vis" in texto and "unidades" in texto and not any(x in texto for x in ['agrupado por', 'por vis, no vis', 'por vis, vip', 'por no vis, vip']):
             region = self._extraer_region_general(texto)
             if region:
                 region_cond = self._condicion_region_general(region)
