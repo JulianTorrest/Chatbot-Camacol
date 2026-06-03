@@ -2395,6 +2395,9 @@ RECOMENDACIÓN CRÍTICA:
         # 3. Tipo de Vivienda (VIS/VIP/No VIS)
         tipos_interes = []
         
+        # Detectar si hay intención explícita de agrupación por tipo
+        agrupar_por_tipo = any(x in texto for x in ['agrupado por vis', 'agrupado por vip', 'agrupado por no vis', 'por vis, no vis', 'por vis, vip', 'por tipo de vivienda'])
+        
         # Detectar No VIS
         if "no vis" in texto:
             tipos_interes.append("'No VIS'")
@@ -2415,15 +2418,18 @@ RECOMENDACIÓN CRÍTICA:
             
         if tipos_interes:
             tipos_interes = sorted(list(set(tipos_interes)))
-            if len(tipos_interes) == 1:
-                filtros.append(f"tipo_vivienda = {tipos_interes[0]}")
-            else:
-                filtros.append(f"tipo_vivienda IN ({', '.join(tipos_interes)})")
-                # Si hay múltiples tipos o intención de comparar, preparar agrupación
-                if len(tipos_interes) > 1 or any(x in texto for x in ['comparar', 'vs', 'diferencia', 'distribucion', 'agrupado por', 'por vis', 'por vip', 'por no vis']):
-                    if "tipo_vivienda" not in group_by_cols:
-                        group_by_cols.append("tipo_vivienda")
-        elif any(x in texto for x in ['agrupado por tipo', 'por tipo de vivienda', 'por vis', 'por vip', 'por no vis']):
+            # Solo aplicar filtro si NO hay intención de agrupación explícita
+            if not agrupar_por_tipo:
+                if len(tipos_interes) == 1:
+                    filtros.append(f"tipo_vivienda = {tipos_interes[0]}")
+                else:
+                    filtros.append(f"tipo_vivienda IN ({', '.join(tipos_interes)})")
+            
+            # Si hay múltiples tipos o intención de agrupación, preparar agrupación
+            if len(tipos_interes) > 1 or agrupar_por_tipo or any(x in texto for x in ['comparar', 'vs', 'diferencia', 'distribucion']):
+                if "tipo_vivienda" not in group_by_cols:
+                    group_by_cols.append("tipo_vivienda")
+        elif any(x in texto for x in ['agrupado por tipo', 'por tipo de vivienda']):
             # Si se menciona agrupación por tipo pero no se detectaron tipos específicos, agregar agrupación
             if "tipo_vivienda" not in group_by_cols:
                 group_by_cols.append("tipo_vivienda")
