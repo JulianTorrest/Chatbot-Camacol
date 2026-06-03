@@ -4647,6 +4647,178 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
                     if no_vis_pct > 0:
                         contexto.append(f"🏠 **Segmentación:** {no_vis_pct:.1f}% corresponde a vivienda No VIS (mercado formal).")
         
+        # 4. Análisis de concentración (HHI) si la agrupación es por constructora
+        if idx_categoria != -1 and 'constructora' in columns[idx_categoria].lower():
+            try:
+                # Calcular HHI basado en los datos ya obtenidos
+                shares = [val / total_general for cat, val, pct in analisis_distribucion]
+                hhi = sum(s * s for s in shares) * 10000  # Escalar a escala HHI estándar
+                nivel = "Baja" if hhi < 1500 else "Moderada" if hhi < 2500 else "Alta"
+                contexto.append(f"🏢 **Concentración (HHI):** {nivel} (HHI: {hhi:.0f}). Un HHI > 2500 indica alta concentración del mercado.")
+            except:
+                pass
+        
+        # 5. Análisis avanzados por categoría (Market Share, Valorización, Estacionalidad, Segmentación, Salud, Absorción)
+        if idx_categoria != -1 and len(analisis_distribucion) <= 5:  # Limitar a top 5 para no saturar
+            for categoria, valor, pct in analisis_distribucion[:3]:  # Top 3 categorías
+                try:
+                    # Extraer WHERE clause del SQL original
+                    match_from = re.search(r"FROM\s+livo\s+WHERE\s+(.*?)(\s+GROUP\s+BY|\s+ORDER\s+BY|$)", sql, re.IGNORECASE | re.DOTALL)
+                    if not match_from:
+                        continue
+                    where_clause = match_from.group(1)
+                    
+                    # Agregar filtro para la categoría específica
+                    col_categoria_name = columns[idx_categoria]
+                    where_categoria = f"{where_clause} AND {col_categoria_name} = '{categoria}'"
+                    
+                    # Market Share por categoría
+                    if "compania_constructora" not in sql.lower():  # Solo si no es por constructora
+                        try:
+                            sql_nacional_cat = re.sub(r"AND\s*\(\s*UPPER\s*\(.*?LIKE\s*'.*?'(?:.*?\))+", "", where_categoria)
+                            sql_share_cat = f"SELECT SUM(unidades) FROM livo WHERE {sql_nacional_cat}"
+                            res_nac_cat = self.conn.execute(sql_share_cat).fetchone()
+                            if res_nac_cat and res_nac_cat[0] and res_nac_cat[0] > 0:
+                                total_nacional_cat = res_nac_cat[0]
+                                share_cat = (valor / total_nacional_cat) * 100
+                                contexto.append(f"🌍 **Market Share ({categoria}):** {share_cat:.1f}% del total nacional.")
+                        except:
+                            pass
+                    
+                    # Valorización por categoría (solo si es oferta)
+                    if "cuenta = 'Oferta'" in sql or "cuenta='Oferta'" in sql:
+                        try:
+                            where_limpio = re.sub(r"AND\s+cuenta\s*=\s*'.*?'", "", where_categoria)
+                            where_limpio = re.sub(r"AND\s+fecha\s*=\s*\(.*?\)", "", where_limpio)
+                            
+                            sql_precio_cat = f"""
+                            WITH actual AS (
+                                SELECT AVG(precio_mc_promedio) as precio
+                                FROM livo
+                                WHERE {where_limpio} AND cuenta = 'Oferta' 
+                                  AND fecha = (SELECT MAX(fecha) FROM livo WHERE cuenta = 'Oferta')
+                            ),
+                            anterior AS (
+                                SELECT AVG(precio_mc_promedio) as precio
+                                FROM livo
+                                WHERE {where_limpio} AND cuenta = 'Oferta'
+                                  AND fecha = (SELECT MAX(fecha) - 10000 FROM livo WHERE cuenta = 'Oferta')
+                            )
+                            SELECT a.precio, b.precio FROM actual a, anterior b
+                            """
+                            res_precio = self.conn.execute(sql_precio_cat).fetchone()
+                            if res_precio and res_precio[0] and res_precio[1]:
+                                p_actual, p_ant = res_precio
+                                var = ((p_actual - p_ant) / p_ant) * 100
+                                contexto.append(f"💲 **Valorización ({categoria}):** Variación del {var:+.1f}% vs año anterior.")
+                        except:
+                            pass
+                    
+                    # Estacionalidad por categoría (si hay mes en SQL)
+                    match_mes = re.search(r"SUBSTR.*?=\s*(\d+)", sql)
+                    if match_mes:
+                        try:
+                            mes_consultado = int(match_mes.group(1))
+                            cuenta_match = re.search(r"cuenta\s*=\s*'(\w+)'", sql)
+                            cuenta = cuenta_match.group(1) if cuenta_match else 'Ventas'
+                            
+                            sql_est_cat = f"""
+                            SELECT 
+                                AVG(total) as prom
+                            FROM (
+                                SELECT fecha, SUM(unidades) as total 
+                                FROM livo 
+                                WHERE cuenta = '{cuenta}' AND {col_categoria_name} = '{categoria}'
+                                GROUP BY fecha
+                            )
+                            """
+                            res_est = self.conn.execute(sql_est_cat).fetchone()
+                            if res_est and res_est[0]:
+                                promedio_general = res_est[0]
+                                
+                                # Obtener valor del mes específico
+                                sql_mes_cat = f"""
+                                SELECT SUM(unidades) as total
+                                FROM livo
+                                WHERE cuenta = '{cuenta}' AND {col_categoria_name} = '{categoria}'
+                                  AND CAST(SUBSTR(CAST(fecha AS VARCHAR), 5, 2) AS INTEGER) = {mes_consultado}
+                                """
+                                res_mes = self.conn.execute(sql_mes_cat).fetchone()
+                                if res_mes and res_mes[0]:
+                                    valor_mes = res_mes[0]
+                                    if promedio_general > 0:
+                                        var_est = ((valor_mes - promedio_general) / promedio_general) * 100
+                                        contexto.append(f"📅 **Estacionalidad ({categoria}):** {var_est:+.1f}% vs promedio mensual.")
+                        except:
+                            pass
+                    
+                    # Segmentación por categoría (VIS vs No VIS)
+                    if "tipo_vivienda" not in sql.lower():
+                        try:
+                            sql_seg_cat = f"""
+                            SELECT 
+                                SUM(CASE WHEN tipo_vivienda = 'VIS' THEN unidades ELSE 0 END) * 100.0 / SUM(unidades),
+                                SUM(CASE WHEN tipo_vivienda = 'No VIS' THEN unidades ELSE 0 END) * 100.0 / SUM(unidades)
+                            FROM livo WHERE {where_categoria}
+                            """
+                            res_seg = self.conn.execute(sql_seg_cat).fetchone()
+                            if res_seg:
+                                vis_pct, no_vis_pct = res_seg
+                                if vis_pct > 0 or no_vis_pct > 0:
+                                    contexto.append(f"🏠 **Segmentación ({categoria}):** VIS {vis_pct or 0:.1f}%, No VIS {no_vis_pct or 0:.1f}%.")
+                        except:
+                            pass
+                    
+                    # Salud del mercado por categoría (rotación)
+                    if "cuenta = 'Oferta'" in sql or "cuenta='Oferta'" in sql:
+                        try:
+                            # Obtener ventas promedio mensual para la categoría
+                            sql_ventas_cat = f"""
+                            SELECT AVG(total) as prom_ventas
+                            FROM (
+                                SELECT fecha, SUM(unidades) as total 
+                                FROM livo 
+                                WHERE cuenta = 'Ventas' AND {col_categoria_name} = '{categoria}'
+                                GROUP BY fecha
+                            )
+                            """
+                            res_ventas = self.conn.execute(sql_ventas_cat).fetchone()
+                            if res_ventas and res_ventas[0] and res_ventas[0] > 0:
+                                prom_ventas = res_ventas[0]
+                                meses_agotamiento = valor / prom_ventas
+                                contexto.append(f"🏥 **Salud ({categoria}):** Stock se agotaría en {meses_agotamiento:.1f} meses.")
+                                if meses_agotamiento > 9:
+                                    contexto.append(f"⚠️ **Alerta ({categoria}):** Rotación crítica (>9 meses).")
+                        except:
+                            pass
+                    
+                    # Absorción por categoría
+                    if "cuenta = 'Ventas'" in sql or "cuenta='Ventas'" in sql:
+                        try:
+                            sql_lanz_cat = f"SELECT SUM(unidades) FROM livo WHERE cuenta = 'Lanzamientos' AND {col_categoria_name} = '{categoria}'"
+                            res_lanz = self.conn.execute(sql_lanz_cat).fetchone()
+                            if res_lanz and res_lanz[0] and res_lanz[0] > 0:
+                                lanzamientos = res_lanz[0]
+                                absorcion = (valor / lanzamientos) * 100
+                                contexto.append(f"📊 **Absorción ({categoria}):** {absorcion:.1f}% de los lanzamientos.")
+                        except:
+                            pass
+                    
+                    elif "cuenta = 'Lanzamientos'" in sql or "cuenta='Lanzamientos'" in sql:
+                        try:
+                            sql_ven_cat = f"SELECT SUM(unidades) FROM livo WHERE cuenta = 'Ventas' AND {col_categoria_name} = '{categoria}'"
+                            res_ven = self.conn.execute(sql_ven_cat).fetchone()
+                            if res_ven and res_ven[0]:
+                                ventas = res_ven[0]
+                                absorcion = (ventas / valor) * 100
+                                contexto.append(f"📊 **Absorción ({categoria}):** Se ha vendido el {absorcion:.1f}% de lo lanzado.")
+                        except:
+                            pass
+                    
+                except Exception as e:
+                    print(f"⚠️ Error en análisis avanzado por categoría {categoria}: {e}")
+                    continue
+        
         return contexto
 
     def _obtener_narrativa_coyuntura(self, pregunta: str) -> Optional[str]:
