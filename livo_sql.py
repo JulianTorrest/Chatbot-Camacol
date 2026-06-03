@@ -966,11 +966,11 @@ RECOMENDACIÓN CRÍTICA:
         # Detección de operación PRIMERO para evitar que "valor máximo" detecte "valor" como métrica
         op_funcion = "SUM"
         
-        debug_op_msg = f"[DEBUG _generar_sql_sin_llm] Detectando op_funcion para: {texto}"
-        if STREAMLIT_AVAILABLE:
-            st.text(debug_op_msg)
-        else:
-            print(debug_op_msg)
+        # debug_op_msg = f"[DEBUG _generar_sql_sin_llm] Detectando op_funcion para: {texto}"
+        # if STREAMLIT_AVAILABLE:
+        #     st.text(debug_op_msg)
+        # else:
+        #     print(debug_op_msg)
         
         # Palabras clave de entidades para decidir si "mayor" es un cálculo de MAX o un RANKING/Top
         entidades_agrupacion = ['constructora', 'constructoras', 'empresa', 'empresas', 'firma', 'firmas', 'proyecto', 'proyectos', 'departamento', 'departamentos', 'ciudad', 'ciudades', 'regional', 'regionales', 'estrato', 'estratos', 'tipo', 'tipos', 'segmento', 'segmentos', 'zona', 'zonas', 'sector', 'sectores', 'barrio', 'barrios']
@@ -1001,11 +1001,11 @@ RECOMENDACIÓN CRÍTICA:
             op_funcion = "PROMEDIO_PONDERADO"
         elif any(x in texto for x in ['crecimiento', 'crecieron', 'variacion', 'variación', 'cambio', 'diferencia', 'frente a', 'comparado con']):
             op_funcion = "VARIACION"
-            debug_op_msg2 = f"[DEBUG _generar_sql_sin_llm] VARIACION detectado, op_funcion={op_funcion}"
-            if STREAMLIT_AVAILABLE:
-                st.text(debug_op_msg2)
-            else:
-                print(debug_op_msg2)
+            # debug_op_msg2 = f"[DEBUG _generar_sql_sin_llm] VARIACION detectado, op_funcion={op_funcion}"
+            # if STREAMLIT_AVAILABLE:
+            #     st.text(debug_op_msg2)
+            # else:
+            #     print(debug_op_msg2)
         elif any(x in texto for x in ['conteo de valores unicos', 'conteo de valores únicos', 'distinct_count']):
             op_funcion = "DISTINCT_COUNT"
         elif any(x in texto for x in ['moda', 'mode', 'más frecuente', 'valor mas frecuente', 'valor más frecuente', 'frecuente']):
@@ -1310,18 +1310,18 @@ RECOMENDACIÓN CRÍTICA:
         # 0a) VARIACION tiene PRIORIDAD MÁXIMA sobre ventas totales
         # porque preguntas de crecimiento tienen palabras como "vendidas" que coinciden con ventas totales
         if op_funcion == "VARIACION":
-            debug_var_msg = f"[DEBUG VARIACION TIER 1] Entrando a lógica VARIACION con op_funcion={op_funcion}"
-            if STREAMLIT_AVAILABLE:
-                st.text(debug_var_msg)
-            else:
-                print(debug_var_msg)
+            # debug_var_msg = f"[DEBUG VARIACION TIER 1] Entrando a lógica VARIACION con op_funcion={op_funcion}"
+            # if STREAMLIT_AVAILABLE:
+            #     st.text(debug_var_msg)
+            # else:
+            #     print(debug_var_msg)
             
             anios = re.findall(r"(20[0-9]{2})", texto)
-            debug_var_msg2 = f"[DEBUG VARIACION TIER 1] Años encontrados: {anios}"
-            if STREAMLIT_AVAILABLE:
-                st.text(debug_var_msg2)
-            else:
-                print(debug_var_msg2)
+            # debug_var_msg2 = f"[DEBUG VARIACION TIER 1] Años encontrados: {anios}"
+            # if STREAMLIT_AVAILABLE:
+            #     st.text(debug_var_msg2)
+            # else:
+            #     print(debug_var_msg2)
             
             if len(anios) == 1:
                 anios.append(str(int(anios[0]) - 1)) # Si pide un solo año, comparar con el anterior
@@ -1332,11 +1332,11 @@ RECOMENDACIÓN CRÍTICA:
                 if re.search(r'\b' + re.escape(m_txt) + r'\b', texto):
                     meses_encontrados.append((m_txt, m_num))
             
-            debug_var_msg3 = f"[DEBUG VARIACION TIER 1] Meses encontrados: {meses_encontrados}"
-            if STREAMLIT_AVAILABLE:
-                st.text(debug_var_msg3)
-            else:
-                print(debug_var_msg3)
+            # debug_var_msg3 = f"[DEBUG VARIACION TIER 1] Meses encontrados: {meses_encontrados}"
+            # if STREAMLIT_AVAILABLE:
+            #     st.text(debug_var_msg3)
+            # else:
+            #     print(debug_var_msg3)
             
             # Detectar cuenta (Ventas por defecto)
             cuenta_calculo = None  # None significa todas las cuentas
@@ -1399,7 +1399,7 @@ RECOMENDACIÓN CRÍTICA:
                     if cuenta_calculo == 'Oferta' and len(meses_encontrados) == 0:
                         sql = sql.replace(metrica_sql, f"COALESCE(AVG({col_metrica}), 0)")
 
-                    print(f"[DEBUG LIVO reglas TIER 1] SQL VARIACION: {sql}")
+                    # print(f"[DEBUG LIVO reglas TIER 1] SQL VARIACION: {sql}")
                     return sql.strip()
                 except Exception: pass
 
@@ -2100,26 +2100,26 @@ RECOMENDACIÓN CRÍTICA:
             except Exception:
                 pass
 
-        debug_before_var = f"[DEBUG _generar_sql_sin_llm] Antes de bloque VARIACION, op_funcion={op_funcion}"
-        if STREAMLIT_AVAILABLE:
-            st.text(debug_before_var)
-        else:
-            print(debug_before_var)
+        # debug_before_var = f"[DEBUG _generar_sql_sin_llm] Antes de bloque VARIACION, op_funcion={op_funcion}"
+        # if STREAMLIT_AVAILABLE:
+        #     st.text(debug_before_var)
+        # else:
+        #     print(debug_before_var)
         
         # 0d) Análisis de Variación / Crecimiento (Comparación entre periodos)
         if op_funcion == "VARIACION":
-            debug_var_msg = f"[DEBUG VARIACION] Entrando a lógica VARIACION con op_funcion={op_funcion}"
-            if STREAMLIT_AVAILABLE:
-                st.text(debug_var_msg)
-            else:
-                print(debug_var_msg)
+            # debug_var_msg = f"[DEBUG VARIACION] Entrando a lógica VARIACION con op_funcion={op_funcion}"
+            # if STREAMLIT_AVAILABLE:
+            #     st.text(debug_var_msg)
+            # else:
+            #     print(debug_var_msg)
             
             anios = re.findall(r"(20[0-9]{2})", texto)
-            debug_var_msg2 = f"[DEBUG VARIACION] Años encontrados: {anios}"
-            if STREAMLIT_AVAILABLE:
-                st.text(debug_var_msg2)
-            else:
-                print(debug_var_msg2)
+            # debug_var_msg2 = f"[DEBUG VARIACION] Años encontrados: {anios}"
+            # if STREAMLIT_AVAILABLE:
+            #     st.text(debug_var_msg2)
+            # else:
+            #     print(debug_var_msg2)
             
             if len(anios) == 1:
                 anios.append(str(int(anios[0]) - 1)) # Si pide un solo año, comparar con el anterior
@@ -2130,11 +2130,11 @@ RECOMENDACIÓN CRÍTICA:
                 if re.search(r'\b' + re.escape(m_txt) + r'\b', texto):
                     meses_encontrados.append((m_txt, m_num))
             
-            debug_var_msg3 = f"[DEBUG VARIACION] Meses encontrados: {meses_encontrados}"
-            if STREAMLIT_AVAILABLE:
-                st.text(debug_var_msg3)
-            else:
-                print(debug_var_msg3)
+            # debug_var_msg3 = f"[DEBUG VARIACION] Meses encontrados: {meses_encontrados}"
+            # if STREAMLIT_AVAILABLE:
+            #     st.text(debug_var_msg3)
+            # else:
+            #     print(debug_var_msg3)
             
             # Detectar cuenta (Ventas por defecto)
             cuenta_calculo = None  # None significa todas las cuentas
@@ -3343,11 +3343,11 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         for kw in alta_confianza:
             match = re.search(r'\b' + re.escape(kw) + r'\b', texto)
             if match:
-                debug_msg2 = f"[DEBUG es_pregunta_livo] Coincidencia alta_confianza: '{kw}' en texto"
-                if STREAMLIT_AVAILABLE:
-                    st.text(debug_msg2)
-                else:
-                    print(debug_msg2)
+                # debug_msg2 = f"[DEBUG es_pregunta_livo] Coincidencia alta_confianza: '{kw}' en texto"
+                # if STREAMLIT_AVAILABLE:
+                #     st.text(debug_msg2)
+                # else:
+                #     print(debug_msg2)
                 return True
                 
         # 2. Palabras clave de MEDIA CONFIANZA (compartidas con lenguaje general)
@@ -3395,17 +3395,17 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         has_periodo = any(re.search(r'\b' + re.escape(per) + r'\b', texto) for per in periodos)
         has_cuenta = any(re.search(r'\b' + re.escape(cta) + r'\b', texto) for cta in cuentas)
         
-        # DEBUG: Imprimir estado de detección
-        debug_msg = f"[DEBUG es_pregunta_livo] texto: {texto}\n"
-        debug_msg += f"[DEBUG es_pregunta_livo] has_alta_confianza_data: {has_alta_confianza_data}\n"
-        debug_msg += f"[DEBUG es_pregunta_livo] has_media_confianza: {has_media_confianza}\n"
-        debug_msg += f"[DEBUG es_pregunta_livo] has_operacion: {has_operacion}\n"
-        debug_msg += f"[DEBUG es_pregunta_livo] has_periodo: {has_periodo}"
-        
-        if STREAMLIT_AVAILABLE:
-            st.text(debug_msg)
-        else:
-            print(debug_msg)
+        # DEBUG: Imprimir estado de detección (comentado)
+        # debug_msg = f"[DEBUG es_pregunta_livo] texto: {texto}\n"
+        # debug_msg += f"[DEBUG es_pregunta_livo] has_alta_confianza_data: {has_alta_confianza_data}\n"
+        # debug_msg += f"[DEBUG es_pregunta_livo] has_media_confianza: {has_media_confianza}\n"
+        # debug_msg += f"[DEBUG es_pregunta_livo] has_operacion: {has_operacion}\n"
+        # debug_msg += f"[DEBUG es_pregunta_livo] has_periodo: {has_periodo}"
+        # 
+        # if STREAMLIT_AVAILABLE:
+        #     st.text(debug_msg)
+        # else:
+        #     print(debug_msg)
         
         # 3. Palabras clave CONCEPTUALES (que deberían ir a LLM general)
         conceptos_keywords = [
@@ -3420,7 +3420,7 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
         # Decision logic:
         # If it has high-confidence data keywords, it's LIVO.
         if has_alta_confianza_data:
-            print(f"[DEBUG es_pregunta_livo] RETORNO TRUE por alta_confianza")
+            # print(f"[DEBUG es_pregunta_livo] RETORNO TRUE por alta_confianza")
             return True
         
         # If it has contextual data keywords AND an operation/region/period/account, it's LIVO.
@@ -3473,19 +3473,19 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
 
         # MEJORA: Intentar primero con reglas (sin LLM) para consultas comunes
         # Esto ahorra tokens y es más rápido para preguntas estándar
-        debug_sql_msg = f"[DEBUG _generar_sql_sin_llm] Llamando con pregunta: {pregunta}"
-        if STREAMLIT_AVAILABLE:
-            st.text(debug_sql_msg)
-        else:
-            print(debug_sql_msg)
+        # debug_sql_msg = f"[DEBUG _generar_sql_sin_llm] Llamando con pregunta: {pregunta}"
+        # if STREAMLIT_AVAILABLE:
+        #     st.text(debug_sql_msg)
+        # else:
+        #     print(debug_sql_msg)
         
         sql_reglas = self._generar_sql_sin_llm(pregunta)
         
-        debug_sql_msg2 = f"[DEBUG _generar_sql_sin_llm] SQL generado: {sql_reglas if sql_reglas else 'None'}"
-        if STREAMLIT_AVAILABLE:
-            st.text(debug_sql_msg2)
-        else:
-            print(debug_sql_msg2)
+        # debug_sql_msg2 = f"[DEBUG _generar_sql_sin_llm] SQL generado: {sql_reglas if sql_reglas else 'None'}"
+        # if STREAMLIT_AVAILABLE:
+        #     st.text(debug_sql_msg2)
+        # else:
+        #     print(debug_sql_msg2)
         
         if sql_reglas:
             print(f"Usando SQL generado por reglas (sin LLM): {sql_reglas}")
