@@ -4530,8 +4530,8 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             
             # Formatear la respuesta principal
             respuesta = self._formatear_resultados(result, columns, sql)
-            respuesta += "\n\n🔍 *Fuente: Base de datos LIVO (SQL Generado)*"
-            respuesta += f"\n\n🛠️ **Query:** `{sql}`"
+            respuesta += "\n\n *Fuente: Base de datos LIVO (SQL Generado)*"
+            respuesta += f"\n\n **Query:** `{sql}`"
 
             # --- Generación de Contexto Unificado (Consistente con reglas) ---
             contexto_items = []
@@ -4549,7 +4549,7 @@ Genera SOLO el SQL (sin explicaciones, sin markdown, sin comentarios):
             if avanzado: contexto_items.extend(avanzado)
 
             if contexto_items:
-                respuesta += "\n\n📝 **Contexto LIVO:**\n" + "\n".join(contexto_items)
+                respuesta += "\n\n **Contexto LIVO:**\n" + "\n".join(contexto_items)
 
             # MEJORA: Visualización Automática y Contextual
             chart_data = None
