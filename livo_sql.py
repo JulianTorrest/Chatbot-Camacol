@@ -3235,8 +3235,10 @@ El flujo de la actividad edificadora sigue estas etapas secuenciales:
                      'meta', 'narino', 'quindio', 'risaralda', 'santander', 'tolima', 'valle', 'cundinamarca']
         
         # Contexto: operaciones o periodos típicos de LIVO
-        operaciones = ['suma', 'promedio', 'total', 'cantidad', 'cuantos', 'cuantas', 'ranking', 'top', 'mayor', 'menor', 'distribucion', 'conteo', 'maximo', 'minimo', 'mediana', 'moda']
-        periodos = ['ene-26', 'feb-26', 'mar-26', 'abr-26', '2026', '2025', '2024', '2023', 'trimestre', 'mes', 'año']
+        operaciones = ['suma', 'promedio', 'total', 'cantidad', 'cuantos', 'cuantas', 'ranking', 'top', 'mayor', 'menor', 'distribucion', 'conteo', 'maximo', 'minimo', 'mediana', 'moda', 'crecieron', 'crecimiento']
+        periodos = ['ene-26', 'feb-26', 'mar-26', 'abr-26', 'may-26', 'jun-26', 'jul-26', 'ago-26', 'sep-26', 'oct-26', 'nov-26', 'dic-26',
+                    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+                    '2026', '2025', '2024', '2023', 'trimestre', 'mes', 'año']
         cuentas = ['culminadas', 'entregadas', 'iniciaciones', 'lanzamientos', 'oferta', 'paralizado', 'renuncias', 'saldo que inicia', 'ventas', 'construccion', 'preventa', 'proyectado']
         
         # Check for presence of high-confidence data keywords
