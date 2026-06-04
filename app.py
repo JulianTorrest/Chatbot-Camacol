@@ -23,7 +23,7 @@ try:
     from user_profile_manager import user_profile_manager
 except Exception as e:
     user_profile_manager = None
-    print(f"⚠️ Gestor de perfiles de usuario no disponible: {e}")
+    print(f"Gestor de perfiles de usuario no disponible: {e}")
 
 # Importar analizador de datos
 try:
@@ -32,11 +32,11 @@ try:
     DATA_ANALYZER_AVAILABLE = True
 except Exception as e:
     DATA_ANALYZER_AVAILABLE = False
-    print(f"⚠️ Analizador de datos no disponible: {e}")
+    print(f"Analizador de datos no disponible: {e}")
 
 # RAG deshabilitado para reducir tamaño del repositorio en Streamlit Cloud
 RAG_AVAILABLE = False
-print("ℹ️ RAG deshabilitado - usando solo Coyuntura, LIVO SQL y LLM")
+print("RAG deshabilitado - usando solo Coyuntura, LIVO SQL y LLM")
 
 # Importar sistema LIVO SQL (DuckDB)
 try:
@@ -159,36 +159,36 @@ try:
     print("✅ Sistema de comparación cuádruple cargado correctamente")
 except Exception as e:
     COMPARADOR_COYUNTURA_AVAILABLE = False
-    print(f"⚠️ Sistema de comparación cuádruple no disponible: {e}")
+    print(f"Sistema de comparación cuádruple no disponible: {e}")
 
 # Importar sistema de coyuntura de UTV (Unidades Terminadas sin Vender)
 try:
     from utv_coyuntura import utv_coyuntura
     COYUNTURA_UTV_AVAILABLE = True
-    print("✅ Sistema de coyuntura de UTV cargado correctamente")
+    print("Sistema de coyuntura de UTV cargado correctamente")
 except Exception as e:
     COYUNTURA_UTV_AVAILABLE = False
-    print(f"⚠️ Sistema de coyuntura de UTV no disponible: {e}")
+    print(f"Sistema de coyuntura de UTV no disponible: {e}")
 
 # Importar sistema de coyuntura de Rotación de Inventarios
 try:
     from rotacion_coyuntura import rotacion_coyuntura
     COYUNTURA_ROTACION_AVAILABLE = True
-    print("✅ Sistema de coyuntura de Rotación de Inventarios cargado correctamente")
+    print("Sistema de coyuntura de Rotación de Inventarios cargado correctamente")
 except Exception as e:
     COYUNTURA_ROTACION_AVAILABLE = False
-    print(f"⚠️ Sistema de coyuntura de Rotación de Inventarios no disponible: {e}")
+    print(f"Sistema de coyuntura de Rotación de Inventarios no disponible: {e}")
 
 # Importar sistema de búsqueda por coordenadas para Coyuntura
 try:
     from coyuntura_busqueda import buscar_coyuntura, CoyunturaBuscador
     COYUNTURA_BUSQUEDA_AVAILABLE = True
     buscador_coyuntura = CoyunturaBuscador()
-    print("✅ Sistema de búsqueda por coordenadas para Coyuntura cargado correctamente")
+    print("Sistema de búsqueda por coordenadas para Coyuntura cargado correctamente")
 except Exception as e:
     COYUNTURA_BUSQUEDA_AVAILABLE = False
     buscador_coyuntura = None
-    print(f"⚠️ Sistema de búsqueda por coordenadas para Coyuntura no disponible: {e}")
+    print(f"Sistema de búsqueda por coordenadas para Coyuntura no disponible: {e}")
 
 
 # Importar pandas para procesamiento de datos
