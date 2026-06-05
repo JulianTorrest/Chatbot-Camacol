@@ -91,45 +91,43 @@ try:
             else:
                 status_msg = st.info("⏳ Descargando base de datos LIVO desde la nube...")
                 
-                session = requests.Session()
-                session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
-                
                 try:
-                    # Estrategia: Si es docs.google.com/spreadsheets, usar exportación XLSX.
-                    # Es mucho más fiable para evitar avisos de virus que bloquean la descarga directa.
-                    if "docs.google.com/spreadsheets" in livo_url:
-                        download_url = f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx"
-                    else:
-                        download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                    # Usamos una sesión nueva y limpia para evitar el error 432 de headers
+                    session = requests.Session()
+                    session.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
                     
-                    resp = session.get(download_url, timeout=60, stream=True)
+                    # Para archivos Excel subidos (>100MB), el endpoint 'uc' es el único fiable
+                    download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
                     
-                    # Si recibimos HTML (como el aviso de virus de Google), intentamos extraer el token de confirmación
-                    if 'text/html' in resp.headers.get('Content-Type', ''):
-                        confirm_token = next((v for k, v in resp.cookies.items() if k.startswith('download_warning')), None)
-                        
-                        if not confirm_token:
-                            # Buscar el token en el contenido del HTML (enlace 'confirm=...')
-                            html_content = resp.text
-                            match = re.search(r'confirm=([0-9A-Za-z_]+)', html_content)
-                            if match:
-                                confirm_token = match.group(1)
-                        
-                        if confirm_token:
-                            # Reintentar con el token de confirmación
-                            download_url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm={confirm_token}"
-                            resp = session.get(download_url, timeout=60, stream=True)
+                    # Primer intento: obtener cookies de confirmación
+                    resp = session.get(download_url, timeout=45, stream=True)
+                    
+                    # Extraer el token de confirmación de las cookies (necesario para archivos grandes)
+                    confirm_token = None
+                    for k, v in resp.cookies.items():
+                        if k.startswith('download_warning'):
+                            confirm_token = v
+                            break
+                    
+                    # Si hay token, relanzamos la petición con el parámetro 'confirm'
+                    if confirm_token:
+                        download_url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm={confirm_token}"
+                        # Cerramos la anterior y abrimos una nueva para limpiar headers acumulados
+                        resp = session.get(download_url, timeout=120, stream=True)
 
                     if resp.status_code == 200:
                         temp_path = BASE_DIR / "livo_cloud_download.xlsx"
                         with open(temp_path, "wb") as f:
-                            for chunk in resp.iter_content(chunk_size=131072):
-                                if chunk: f.write(chunk)
+                            # Escribimos en bloques de 1MB para manejar los 145MB eficientemente
+                            for chunk in resp.iter_content(chunk_size=1048576):
+                                if chunk:
+                                    f.write(chunk)
                         
                         file_size = temp_path.stat().st_size if temp_path.exists() else 0
-                        if file_size > 10000: # Umbral de 10KB para asegurar que no es un HTML de error
+                        # Si el archivo es > 5MB, asumimos que la descarga fue exitosa (no es un HTML de error)
+                        if file_size > 5000000: 
                             with open(temp_path, 'rb') as f:
-                                header = f.read(2048)
+                                header = f.read(1024)
                                 # Si el header contiene HTML o login, es un error de permisos
                                 if b"<!DOCTYPE html>" in header or b"<html" in header or b"google-signin" in header:
                                     LIVO_FILE_ERROR = f"❌ Acceso denegado. Google devolvió HTML ({file_size} bytes). Revisa permisos en Drive: debe ser 'Cualquier persona con el enlace'."
@@ -138,13 +136,13 @@ try:
                                     status_msg.empty()
                                     st.success(f"✅ LIVO cargado exitosamente ({temp_path.stat().st_size // 1024} KB).")
                         else:
-                            LIVO_FILE_ERROR = f"❌ El archivo descargado es demasiado pequeño ({file_size} bytes). Google bloqueó la descarga o el enlace es incorrecto."
+                            LIVO_FILE_ERROR = f"❌ Archivo incompleto ({file_size} bytes). Google bloqueó la descarga por el tamaño del archivo o el enlace es incorrecto."
                     else:
-                        LIVO_FILE_ERROR = f"❌ Error de descarga (Status {resp.status_code}). Verifica que el archivo de Drive sea público."
+                        LIVO_FILE_ERROR = f"❌ Error de descarga (Status {resp.status_code}). Google Drive rechazó la conexión (Error 432 o similar)."
                 except Exception as e:
                     LIVO_FILE_ERROR = f"❌ Error de conexión: {str(e)}"
         except Exception as e:
-            LIVO_FILE_ERROR = f"❌ Error en la URL: {str(e)}"
+            LIVO_FILE_ERROR = f"❌ Error procesando URL: {str(e)}"
     else:
         LIVO_FILE_ERROR = "⚠️ No se configuró 'LIVO_EXCEL_URL' en los secretos."
 
