@@ -60,28 +60,47 @@ try:
     # Definir la ruta base del proyecto
     print(f"DEBUG: BASE_DIR is {BASE_DIR}")
 
+    # Intentar obtener LIVO desde URL en secretos (Google Drive) para Streamlit Cloud
+    livo_url = st.secrets.get("LIVO_EXCEL_URL")
     LIVO_PATH = None
-    file_names = [
-        'LIVO_total_abr26_.xlsx', 
-        'LIVO_total_nacional_abr26.xlsx', 
-        'LIVO_total_NR_abr26_.xlsx', 
-        'LIVO_total_abr26_resumen_.xlsx'
-    ]
-    
-    # 1. Intentar buscar en LIVO/LIVO/ (insensible a mayúsculas)
-    for fname in file_names:
-        p = find_path_flexible(BASE_DIR, ['LIVO', 'LIVO', fname])
-        if p:
-            LIVO_PATH = str(p)
-            break
-            
-    # 2. Fallback: buscar en LIVO/ (por si la estructura en el repo es de un solo nivel)
+
+    if livo_url:
+        try:
+            print(f"DEBUG: Intentando descargar LIVO desde URL en secretos: {livo_url}")
+            # Procesar URL para permitir descarga directa de XLSX desde Google Sheets/Drive
+            if "docs.google.com/spreadsheets/d/" in livo_url:
+                file_id = livo_url.split("/d/")[1].split("/")[0]
+                download_url = f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx"
+            elif "drive.google.com/file/d/" in livo_url:
+                file_id = livo_url.split("/d/")[1].split("/")[0]
+                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+            else:
+                download_url = livo_url
+
+            resp = requests.get(download_url)
+            if resp.status_code == 200:
+                livo_local = BASE_DIR / "livo_cloud_download.xlsx"
+                with open(livo_local, "wb") as f:
+                    f.write(resp.content)
+                LIVO_PATH = str(livo_local)
+                print(f"✅ LIVO descargado exitosamente: {LIVO_PATH}")
+        except Exception as e:
+            print(f"⚠️ No se pudo descargar LIVO desde la nube: {e}")
+
+    # Fallback local si no hay URL o falló la descarga
     if not LIVO_PATH:
+        file_names = ['LIVO_total_abr26_.xlsx', 'LIVO_total_nacional_abr26.xlsx', 'LIVO_total_NR_abr26_.xlsx', 'LIVO_total_abr26_resumen_.xlsx']
         for fname in file_names:
-            p = find_path_flexible(BASE_DIR, ['LIVO', fname])
+            p = find_path_flexible(BASE_DIR, ['LIVO', 'LIVO', fname])
             if p:
                 LIVO_PATH = str(p)
                 break
+        if not LIVO_PATH:
+            for fname in file_names:
+                p = find_path_flexible(BASE_DIR, ['LIVO', fname])
+                if p:
+                    LIVO_PATH = str(p)
+                    break
 
     if LIVO_PATH is None:
         print(f"DEBUG: Archivos en raíz: {[f.name for f in BASE_DIR.iterdir()]}")
