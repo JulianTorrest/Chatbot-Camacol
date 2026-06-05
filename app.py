@@ -80,26 +80,51 @@ try:
     if livo_url:
         try:
             print(f"DEBUG: Intentando descargar LIVO desde URL en secretos: {livo_url}")
-            # Procesar URL para permitir descarga directa de XLSX desde Google Sheets/Drive
-            if "docs.google.com/spreadsheets/d/" in livo_url:
+            # Extraer ID de archivo de forma robusta para Google Drive/Sheets
+            file_id = None
+            if "/d/" in livo_url:
                 file_id = livo_url.split("/d/")[1].split("/")[0]
-                download_url = f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx"
-            elif "drive.google.com/file/d/" in livo_url:
-                file_id = livo_url.split("/d/")[1].split("/")[0]
-                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-            else:
-                download_url = livo_url
+            elif "id=" in livo_url:
+                file_id = livo_url.split("id=")[1].split("&")[0]
+            
+            if not file_id:
+                raise ValueError("No se pudo identificar el ID del archivo en la URL de Drive.")
 
-            resp = requests.get(download_url, timeout=60)
+            # URL de descarga directa universal de Drive. Es más fiable para archivos Excel subidos.
+            download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+            
+            # Usar sesión para manejar cookies de confirmación de Drive (necesario para archivos grandes)
+            session = requests.Session()
+            resp = session.get(download_url, timeout=60, stream=True)
+            
+            confirm_token = None
+            for k, v in resp.cookies.items():
+                if k.startswith('download_warning'):
+                    confirm_token = v
+                    break
+            
+            if confirm_token:
+                resp = session.get(download_url, params={'id': file_id, 'confirm': confirm_token}, stream=True)
+
             if resp.status_code == 200:
                 livo_local = BASE_DIR / "livo_cloud_download.xlsx"
                 with open(livo_local, "wb") as f:
-                    f.write(resp.content)
-                if livo_local.exists() and livo_local.stat().st_size > 1024:
-                    LIVO_PATH = livo_local
-                    print(f"✅ LIVO descargado exitosamente: {LIVO_PATH}")
+                    for chunk in resp.iter_content(chunk_size=32768):
+                        if chunk: f.write(chunk)
+                
+                if livo_local.exists() and livo_local.stat().st_size > 5000:
+                    # Validar que no sea HTML (página de error de permisos o login de Google)
+                    with open(livo_local, 'rb') as f:
+                        header = f.read(100)
+                        if b"<!DOCTYPE html>" in header or b"<html>" in header:
+                            print("⚠️ El archivo descargado es HTML. Revisa permisos: debe ser 'Cualquier persona con el enlace'.")
+                        else:
+                            LIVO_PATH = livo_local
+                            print(f"✅ LIVO descargado exitosamente: {LIVO_PATH}")
                 else:
-                    print(f"⚠️ El archivo descargado parece corrupto o es un puntero LFS.")
+                    print(f"⚠️ El archivo descargado es demasiado pequeño o está incompleto ({livo_local.stat().st_size if livo_local.exists() else 0} bytes).")
+            else:
+                print(f"⚠️ Error de descarga en Drive: Status Code {resp.status_code}")
         except Exception as e:
             print(f"⚠️ No se pudo descargar LIVO desde la nube: {e}")
 
