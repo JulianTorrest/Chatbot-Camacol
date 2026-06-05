@@ -60,11 +60,23 @@ try:
     # Definir la ruta base del proyecto
     print(f"DEBUG: BASE_DIR is {BASE_DIR}")
 
-    # Intentar obtener LIVO desde URL en secretos (Google Drive) para Streamlit Cloud
-    livo_url = st.secrets.get("LIVO_EXCEL_URL")
+    LIVO_SQL_AVAILABLE = False
+    LIVO_IMPORT_ERROR = None
+    LIVO_FILE_ERROR = None
     LIVO_PATH = None
+    LIVO_PATH_STR = None
+
+    # 1. Intentar importar el sistema (Código)
+    try:
+        from livo_sql import LIVOSQLSystem
+        LIVO_SQL_AVAILABLE = True
+    except Exception as e:
+        LIVO_IMPORT_ERROR = str(e)
+        print(f"❌ Error importando livo_sql: {e}")
+
+    # 2. Configurar el archivo (Datos)
+    livo_url = st.secrets.get("LIVO_EXCEL_URL")
     
-    # Intentar descargar el archivo
     if livo_url:
         try:
             print(f"DEBUG: Intentando descargar LIVO desde URL en secretos: {livo_url}")
@@ -83,42 +95,32 @@ try:
                 livo_local = BASE_DIR / "livo_cloud_download.xlsx"
                 with open(livo_local, "wb") as f:
                     f.write(resp.content)
-                LIVO_PATH = livo_local
-                print(f"✅ LIVO descargado exitosamente: {LIVO_PATH}")
+                if livo_local.exists() and livo_local.stat().st_size > 1024:
+                    LIVO_PATH = livo_local
+                    print(f"✅ LIVO descargado exitosamente: {LIVO_PATH}")
+                else:
+                    print(f"⚠️ El archivo descargado parece corrupto o es un puntero LFS.")
         except Exception as e:
             print(f"⚠️ No se pudo descargar LIVO desde la nube: {e}")
 
-    # Fallback local si no hay URL o falló la descarga
     if not LIVO_PATH:
         file_names = ['LIVO_total_abr26_.xlsx', 'LIVO_total_nacional_abr26.xlsx', 'LIVO_total_NR_abr26_.xlsx', 'LIVO_total_abr26_resumen_.xlsx']
         for fname in file_names:
             p = find_path_flexible(BASE_DIR, ['LIVO', 'LIVO', fname])
-            if p:
-                LIVO_PATH = p
-                break
+            if p: LIVO_PATH = p; break
         if not LIVO_PATH:
             for fname in file_names:
                 p = find_path_flexible(BASE_DIR, ['LIVO', fname])
-                if p:
-                    LIVO_PATH = p
-                    break
+                if p: LIVO_PATH = p; break
     
-    # Convertir a string para compatibilidad con el resto del sistema
-    LIVO_PATH_STR = str(LIVO_PATH) if LIVO_PATH else None
-
-    if LIVO_PATH is None:
+    if LIVO_PATH:
+        LIVO_PATH_STR = str(LIVO_PATH)
+    else:
+        LIVO_FILE_ERROR = "No se encontró el archivo Excel LIVO (Drive falló y no hay local)."
         print(f"DEBUG: Archivos en raíz: {[f.name for f in BASE_DIR.iterdir()]}")
-        raise FileNotFoundError("No se encontró el archivo LIVO. Revisa mayúsculas en carpetas LIVO/LIVO.")
-    
-    # 3. Verificar si el archivo es un puntero LFS o si está vacío
-    if LIVO_PATH.exists() and LIVO_PATH.stat().st_size < 1024:
-        print(f" ERROR CRÍTICO: {LIVO_PATH} es muy pequeño ({LIVO_PATH.stat().st_size} bytes). Posible error de descarga o puntero LFS.")
-        raise ValueError("Archivo Excel incompleto (Git LFS pointer).")
 
-    LIVO_SQL_AVAILABLE = True
 except Exception as e:
-    LIVO_SQL_AVAILABLE = False
-    print(f"❌ Error importando livo_sql: {e}")
+    print(f"❌ Error crítico en inicialización: {e}")
 
 # Importar sistema SQL Dinámico para otros Excel
 try:
@@ -516,10 +518,12 @@ def inicializar_livo_sql():
     except Exception as e:
         print(f" Error recargando livo_sql: {e}")
 
-    if not LIVO_SQL_AVAILABLE or 'LIVO_PATH_STR' not in globals() or LIVO_PATH_STR is None:
-        razon = "Error de importación" if not LIVO_SQL_AVAILABLE else "Archivo Excel LIVO no encontrado en el servidor"
-        print(f" LIVO_SQL no disponible: {razon}")
-        st.error(f"Sistema LIVO SQL no disponible: {razon}")
+    if not LIVO_SQL_AVAILABLE:
+        st.error(f"Sistema LIVO SQL no disponible: Error de importación de código ({LIVO_IMPORT_ERROR})")
+        return None, False
+        
+    if LIVO_PATH_STR is None:
+        st.error(f"Sistema LIVO SQL no disponible: {LIVO_FILE_ERROR}")
         return None, False
     
     try:
