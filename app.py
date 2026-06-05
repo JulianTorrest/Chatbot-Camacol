@@ -63,7 +63,8 @@ try:
     # Intentar obtener LIVO desde URL en secretos (Google Drive) para Streamlit Cloud
     livo_url = st.secrets.get("LIVO_EXCEL_URL")
     LIVO_PATH = None
-
+    
+    # Intentar descargar el archivo
     if livo_url:
         try:
             print(f"DEBUG: Intentando descargar LIVO desde URL en secretos: {livo_url}")
@@ -77,12 +78,12 @@ try:
             else:
                 download_url = livo_url
 
-            resp = requests.get(download_url)
+            resp = requests.get(download_url, timeout=60)
             if resp.status_code == 200:
                 livo_local = BASE_DIR / "livo_cloud_download.xlsx"
                 with open(livo_local, "wb") as f:
                     f.write(resp.content)
-                LIVO_PATH = str(livo_local)
+                LIVO_PATH = livo_local
                 print(f"✅ LIVO descargado exitosamente: {LIVO_PATH}")
         except Exception as e:
             print(f"⚠️ No se pudo descargar LIVO desde la nube: {e}")
@@ -93,22 +94,25 @@ try:
         for fname in file_names:
             p = find_path_flexible(BASE_DIR, ['LIVO', 'LIVO', fname])
             if p:
-                LIVO_PATH = str(p)
+                LIVO_PATH = p
                 break
         if not LIVO_PATH:
             for fname in file_names:
                 p = find_path_flexible(BASE_DIR, ['LIVO', fname])
                 if p:
-                    LIVO_PATH = str(p)
+                    LIVO_PATH = p
                     break
+    
+    # Convertir a string para compatibilidad con el resto del sistema
+    LIVO_PATH_STR = str(LIVO_PATH) if LIVO_PATH else None
 
     if LIVO_PATH is None:
         print(f"DEBUG: Archivos en raíz: {[f.name for f in BASE_DIR.iterdir()]}")
         raise FileNotFoundError("No se encontró el archivo LIVO. Revisa mayúsculas en carpetas LIVO/LIVO.")
     
-    # 3. Verificar si el archivo es un puntero LFS (archivo corrupto en la nube)
-    if os.path.getsize(LIVO_PATH) < 1024:
-        print(f" ERROR CRÍTICO: {LIVO_PATH} es un puntero Git LFS ({os.path.getsize(LIVO_PATH)} bytes). No contiene datos reales.")
+    # 3. Verificar si el archivo es un puntero LFS o si está vacío
+    if LIVO_PATH.exists() and LIVO_PATH.stat().st_size < 1024:
+        print(f" ERROR CRÍTICO: {LIVO_PATH} es muy pequeño ({LIVO_PATH.stat().st_size} bytes). Posible error de descarga o puntero LFS.")
         raise ValueError("Archivo Excel incompleto (Git LFS pointer).")
 
     LIVO_SQL_AVAILABLE = True
@@ -512,26 +516,23 @@ def inicializar_livo_sql():
     except Exception as e:
         print(f" Error recargando livo_sql: {e}")
 
-    if not LIVO_SQL_AVAILABLE or LIVO_PATH is None:
+    if not LIVO_SQL_AVAILABLE or 'LIVO_PATH_STR' not in globals() or LIVO_PATH_STR is None:
         razon = "Error de importación" if not LIVO_SQL_AVAILABLE else "Archivo Excel LIVO no encontrado en el servidor"
         print(f" LIVO_SQL no disponible: {razon}")
-        if LIVO_PATH is None:
-            print(f"   Error: El sistema no pudo localizar los archivos en la carpeta LIVO/LIVO/")
+        st.error(f"Sistema LIVO SQL no disponible: {razon}")
         return None, False
     
     try:
-        print(f"\n Inicializando LIVO SQL...")
-        print(f"LIVO_PATH: {LIVO_PATH}")
-        
-        livo_system = LIVOSQLSystem(LIVO_PATH)
-        exito, mensaje = livo_system.inicializar()
-        
-        if exito:
-            print(f" LIVO SQL cargado exitosamente: {mensaje}")
-            return livo_system, True
-        else:
-            print(f" Falló inicialización LIVO SQL: {mensaje}")
-            return None, False
+        with st.status("🚀 Inicializando base de datos LIVO...", expanded=False) as status:
+            livo_system = LIVOSQLSystem(LIVO_PATH_STR)
+            exito, mensaje = livo_system.inicializar()
+            
+            if exito:
+                status.update(label=f"✅ LIVO SQL cargado: {mensaje}", state="complete")
+                return livo_system, True
+            else:
+                status.update(label=f"❌ Falló LIVO SQL: {mensaje}", state="error")
+                return None, False
             
     except Exception as e:
         import traceback
