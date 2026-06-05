@@ -99,35 +99,47 @@ try:
                     # Para archivos Excel subidos (>100MB), el endpoint 'uc' es el único fiable
                     download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
                     
-                    # Primer intento: obtener cookies de confirmación
-                    resp = session.get(download_url, timeout=45, stream=True)
+                    # Intento inicial: Google Drive muestra una advertencia de virus para archivos grandes
+                    resp = session.get(download_url, timeout=60, stream=True)
                     
-                    # Extraer el token de confirmación de las cookies (necesario para archivos grandes)
+                    # 1. Buscamos el token de confirmación en las cookies
                     confirm_token = None
                     for k, v in resp.cookies.items():
                         if k.startswith('download_warning'):
-                            confirm_token = v
-                            break
+                            confirm_token = v; break
                     
-                    # Si hay token, relanzamos la petición con el parámetro 'confirm'
+                    # 2. Si no está en cookies, puede estar en el cuerpo del HTML (común en infraestructuras de nube)
+                    first_chunk = b""
+                    if not confirm_token:
+                        # Leemos los primeros bytes para buscar el patrón confirm=... en el HTML de advertencia
+                        first_chunk = next(resp.iter_content(chunk_size=10240), b"")
+                        html_text = first_chunk.decode('utf-8', errors='ignore')
+                        token_match = re.search(r'confirm=([0-9A-Za-z_]+)', html_text)
+                        if token_match:
+                            confirm_token = token_match.group(1)
+                    
                     if confirm_token:
+                        # Relanzamos con el token de confirmación
                         download_url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm={confirm_token}"
-                        # Cerramos la anterior y abrimos una nueva para limpiar headers acumulados
-                        resp = session.get(download_url, timeout=120, stream=True)
+                        # IMPORTANTE: Limpiar cookies para evitar el error 432 (Request Header Fields Too Large)
+                        session.cookies.clear()
+                        resp = session.get(download_url, timeout=600, stream=True)
+                        first_chunk = b"" # Resetear ya que el nuevo request trae el archivo completo
 
                     if resp.status_code == 200:
                         temp_path = BASE_DIR / "livo_cloud_download.xlsx"
                         with open(temp_path, "wb") as f:
+                            if first_chunk: f.write(first_chunk)
                             # Escribimos en bloques de 1MB para manejar los 145MB eficientemente
                             for chunk in resp.iter_content(chunk_size=1048576):
                                 if chunk:
                                     f.write(chunk)
                         
                         file_size = temp_path.stat().st_size if temp_path.exists() else 0
-                        # Si el archivo es > 5MB, asumimos que la descarga fue exitosa (no es un HTML de error)
-                        if file_size > 5000000: 
+                        # Si el archivo es > 1MB, verificamos integridad básica
+                        if file_size > 1000000: 
                             with open(temp_path, 'rb') as f:
-                                header = f.read(1024)
+                                header = f.read(2048)
                                 # Si el header contiene HTML o login, es un error de permisos
                                 if b"<!DOCTYPE html>" in header or b"<html" in header or b"google-signin" in header:
                                     LIVO_FILE_ERROR = f"❌ Acceso denegado. Google devolvió HTML ({file_size} bytes). Revisa permisos en Drive: debe ser 'Cualquier persona con el enlace'."
@@ -136,9 +148,9 @@ try:
                                     status_msg.empty()
                                     st.success(f"✅ LIVO cargado exitosamente ({temp_path.stat().st_size // 1024} KB).")
                         else:
-                            LIVO_FILE_ERROR = f"❌ Archivo incompleto ({file_size} bytes). Google bloqueó la descarga por el tamaño del archivo o el enlace es incorrecto."
+                            LIVO_FILE_ERROR = f"❌ Archivo incompleto ({file_size} bytes). Google Drive bloqueó la descarga por el tamaño del archivo o el enlace es incorrecto."
                     else:
-                        LIVO_FILE_ERROR = f"❌ Error de descarga (Status {resp.status_code}). Google Drive rechazó la conexión (Error 432 o similar)."
+                        LIVO_FILE_ERROR = f"❌ Error de descarga (Status {resp.status_code}). Google Drive rechazó la conexión (posible error 432)."
                 except Exception as e:
                     LIVO_FILE_ERROR = f"❌ Error de conexión: {str(e)}"
         except Exception as e:
