@@ -75,15 +75,10 @@ try:
         print(f"❌ Error importando livo_sql: {e}")
 
     # 2. Configurar el archivo (Datos)
-    livo_url = None
-    try:
-        livo_url = st.secrets.get("LIVO_EXCEL_URL")
-    except:
-        pass
+    livo_url = st.secrets.get("LIVO_EXCEL_URL") if "LIVO_EXCEL_URL" in st.secrets else None
     
     if livo_url:
         try:
-            print(f"DEBUG: Intentando descargar LIVO desde URL en secretos: {livo_url}")
             file_id = None
             if "/d/" in livo_url:
                 file_id = livo_url.split("/d/")[1].split("/")[0]
@@ -91,52 +86,51 @@ try:
                 file_id = livo_url.split("id=")[1].split("&")[0]
             
             if not file_id:
-                LIVO_FILE_ERROR = "No se pudo identificar el ID del archivo en la URL proporcionada en Secrets."
+                LIVO_FILE_ERROR = f"ID de archivo no identificado en la URL: {livo_url}"
             else:
-                # URL de descarga directa universal de Drive
-                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                # Diferenciar entre Google Sheets y archivos subidos a Drive
+                if "docs.google.com/spreadsheets" in livo_url:
+                    download_url = f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx"
+                else:
+                    download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
                 
-                # Usar sesión con User-Agent para simular navegador (evita bloqueos de Google)
+                st.info(f"⏳ Descargando base de datos desde la nube...")
+                
                 session = requests.Session()
                 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
                 resp = session.get(download_url, timeout=60, stream=True, headers=headers)
                 
-                # Manejar token de confirmación para archivos grandes
-                confirm_token = None
-                for k, v in resp.cookies.items():
-                    if k.startswith('download_warning'):
-                        confirm_token = v; break
-                
-                if confirm_token:
-                    resp = session.get(download_url, params={'id': file_id, 'confirm': confirm_token}, stream=True, headers=headers)
+                # Manejar cookies de confirmación (Google Drive para archivos grandes)
+                if "docs.google.com/spreadsheets" not in livo_url:
+                    confirm_token = None
+                    for k, v in resp.cookies.items():
+                        if k.startswith('download_warning'):
+                            confirm_token = v; break
+                    if confirm_token:
+                        resp = session.get(download_url, params={'id': file_id, 'confirm': confirm_token}, stream=True, headers=headers)
 
                 if resp.status_code == 200:
-                    livo_local = BASE_DIR / "livo_cloud_download.xlsx"
-                    with open(livo_local, "wb") as f:
+                    temp_path = BASE_DIR / "livo_cloud_download.xlsx"
+                    with open(temp_path, "wb") as f:
                         for chunk in resp.iter_content(chunk_size=32768):
                             if chunk: f.write(chunk)
                     
-                    if livo_local.exists() and livo_local.stat().st_size > 5000:
-                        # Validar que no sea HTML (error de permisos)
-                        with open(livo_local, 'rb') as f:
+                    if temp_path.exists() and temp_path.stat().st_size > 5000:
+                        with open(temp_path, 'rb') as f:
                             header = f.read(200)
-                            if b"<!DOCTYPE html>" in header or b"<html>" in header or b"<script" in header:
+                            if b"<!DOCTYPE html>" in header or b"<html" in header or b"<script" in header:
                                 LIVO_FILE_ERROR = "Acceso denegado a Drive: El archivo no es público. Cambia los permisos a 'Cualquier persona con el enlace'."
-                                print(f"⚠️ {LIVO_FILE_ERROR}")
                             else:
-                                LIVO_PATH = livo_local
-                                print(f"✅ LIVO descargado exitosamente: {LIVO_PATH}")
+                                LIVO_PATH = temp_path
+                                st.success("✅ Base de datos LIVO descargada correctamente.")
                     else:
-                        LIVO_FILE_ERROR = f"El archivo descargado está incompleto o es inválido ({livo_local.stat().st_size if livo_local.exists() else 0} bytes)."
-                        print(f"⚠️ {LIVO_FILE_ERROR}")
+                        LIVO_FILE_ERROR = "El archivo descargado está vacío o es demasiado pequeño."
                 else:
-                    LIVO_FILE_ERROR = f"Error en servidor de Drive: Código de estado {resp.status_code}."
-                    print(f"⚠️ {LIVO_FILE_ERROR}")
+                    LIVO_FILE_ERROR = f"Error de conexión con Google (Status: {resp.status_code})"
         except Exception as e:
-            LIVO_FILE_ERROR = f"Fallo crítico en descarga de Drive: {str(e)}"
-            print(f"⚠️ {LIVO_FILE_ERROR}")
+            LIVO_FILE_ERROR = f"Error durante la descarga: {str(e)}"
     else:
-        LIVO_FILE_ERROR = "No se encontró el secreto 'LIVO_EXCEL_URL' en la configuración de Streamlit Cloud."
+        LIVO_FILE_ERROR = "La clave 'LIVO_EXCEL_URL' no está configurada en los Secretos de Streamlit."
 
     if not LIVO_PATH:
         file_names = ['LIVO_total_abr26_.xlsx', 'LIVO_total_nacional_abr26.xlsx', 'LIVO_total_NR_abr26_.xlsx', 'LIVO_total_abr26_resumen_.xlsx']
