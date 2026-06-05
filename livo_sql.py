@@ -20,6 +20,7 @@ import re
 import json
 import hashlib
 import time
+import gc
 from functools import lru_cache
 
 # Importar LLM y configuración de proveedores
@@ -613,9 +614,13 @@ RECOMENDACIÓN CRÍTICA:
                     if not PANDAS_AVAILABLE:
                         return False, "❌ Pandas no disponible para la conversión inicial."
                     
-                    df = pd.read_excel(self.livo_path)
+                    # Cargar usando openpyxl de forma explícita
+                    df = pd.read_excel(self.livo_path, engine='openpyxl')
                     # Crear la tabla 'livo' desde el DataFrame de pandas
                     self.conn.execute("CREATE TABLE livo AS SELECT * FROM df")
+                    # Liberar memoria inmediatamente (Crucial para archivos de 145MB)
+                    del df
+                    gc.collect()
                     
                 elif self.livo_path.suffix.lower() == '.csv':
                     self.conn.execute(f"CREATE TABLE livo AS SELECT * FROM read_csv_auto('{self.livo_path}')")
